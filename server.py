@@ -7,7 +7,6 @@ import hashlib
 from datetime import datetime
 import os
 
-# Şifreyi sildik! Artık linki Render'ın gizli kasasından (Environment Variables) otomatik çekiyor.
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 app = FastAPI()
@@ -26,7 +25,6 @@ def init_db():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 1. Mesajlar Tablosu (PostgreSQL uyumlu)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS messages (
                 id SERIAL PRIMARY KEY,
@@ -37,7 +35,6 @@ def init_db():
             )
         ''')
         
-        # 2. Kullanıcılar Tablosu (Şifreli giriş için)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -47,10 +44,8 @@ def init_db():
             )
         ''')
         
-        # Varsayılan Admin Hesabını Oluşturma (Eğer yoksa)
         cursor.execute("SELECT * FROM users WHERE username = 'admin'")
         if not cursor.fetchone():
-            # Siber güvenlik standardı: Şifreler düz metin tutulmaz, Hashlenir!
             hashed_pw = hashlib.sha256("admin123".encode()).hexdigest()
             cursor.execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)", 
                            ("admin", hashed_pw, "admin"))
@@ -61,7 +56,6 @@ def init_db():
     except Exception as e:
         print(f"Veritabanı başlatılırken hata oluştu: {e}")
 
-# Sunucu başlarken veritabanını hazırla
 init_db()
 
 class ConnectionManager:
@@ -97,8 +91,6 @@ async def websocket_endpoint(websocket: WebSocket):
             if packet.get("type") == "login":
                 username = packet.get("username")
                 password = packet.get("password")
-                
-                # Gelen şifreyi siber güvenlik standartlarına göre hashle
                 hashed_pw = hashlib.sha256(password.encode()).hexdigest()
                 
                 conn = get_db_connection()
@@ -108,10 +100,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 conn.close()
                 
                 if user:
-                    # Şifre doğruysa onay gönder ve rolünü (admin/user) belirt
                     await websocket.send_text(json.dumps({"type": "login_response", "success": True, "role": user[0]}))
                 else:
-                    # Şifre yanlışsa hata gönder
                     await websocket.send_text(json.dumps({"type": "login_response", "success": False}))
 
             # 2. GEÇMİŞİ YÜKLEME
@@ -141,12 +131,43 @@ async def websocket_endpoint(websocket: WebSocket):
                 packet['time'] = time_string
                 await manager.broadcast(json.dumps(packet))
                 
+            # 4. YENİ KULLANICI OLUŞTURMA (YENİ EKLENDİ)
+            elif packet.get("type") == "create_user":
+                new_user = packet.get("username")
+                new_pass = packet.get("password")
+                hashed_pw = hashlib.sha256(new_pass.encode()).hexdigest()
+                
+                try:
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
+                    # Yeni hesabı standart 'user' rolüyle ekliyoruz
+                    cursor.execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)", 
+                                   (new_user, hashed_pw, "user"))
+                    conn.commit()
+                    conn.close()
+                    
+                    # İşlem başarılıysa admine haber ver
+                    await websocket.send_text(json.dumps({
+                        "type": "admin_response", 
+                        "message": f"Başarılı! '{new_user}' adlı kullanıcı sisteme eklendi."
+                    }))
+                except psycopg2.IntegrityError:
+                    # Kullanıcı adı veritabanında zaten varsa
+                    conn.rollback()
+                    await websocket.send_text(json.dumps({
+                        "type": "admin_response", 
+                        "message": "Hata: Bu kullanıcı adı zaten kullanılıyor!"
+                    }))
+                except Exception as e:
+                    await websocket.send_text(json.dumps({
+                        "type": "admin_response", 
+                        "message": "Kayıt sırasında bir hata oluştu."
+                    }))
+                
     except WebSocketDisconnect:
         manager.disconnect(websocket)
     except Exception as e:
-        print(f"Beklenmeyen bağlantı hatası: {e}")
         manager.disconnect(websocket)
 
 if __name__ == "__main__":
-    print("PostgreSQL destekli sunucu başlatıldı!")
     uvicorn.run(app, host="0.0.0.0", port=8000)
