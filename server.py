@@ -8,7 +8,6 @@ from datetime import datetime
 import os
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
-
 app = FastAPI()
 
 @app.get("/")
@@ -25,6 +24,7 @@ def init_db():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # Temel tabloyu oluştur
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS messages (
                 id SERIAL PRIMARY KEY,
@@ -35,6 +35,13 @@ def init_db():
             )
         ''')
         
+        # EĞER ESKİ TABLOYSA, MEDYA SÜTUNLARINI GÜVENLİCE EKLE
+        try:
+            cursor.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_data TEXT")
+            cursor.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_type TEXT")
+        except:
+            pass # Sütunlar zaten varsa devam et
+            
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -52,9 +59,8 @@ def init_db():
             
         conn.commit()
         conn.close()
-        print("Veritabanı bağlantısı ve tablolar hazır.")
     except Exception as e:
-        print(f"Veritabanı başlatılırken hata oluştu: {e}")
+        print(f"Hata: {e}")
 
 init_db()
 
@@ -87,7 +93,6 @@ async def websocket_endpoint(websocket: WebSocket):
             data = await websocket.receive_text()
             packet = json.loads(data)
             
-            # 1. GİRİŞ YAPMA KONTROLÜ
             if packet.get("type") == "login":
                 username = packet.get("username")
                 password = packet.get("password")
@@ -104,34 +109,36 @@ async def websocket_endpoint(websocket: WebSocket):
                 else:
                     await websocket.send_text(json.dumps({"type": "login_response", "success": False}))
 
-            # 2. GEÇMİŞİ YÜKLEME
             elif packet.get("type") == "load_history":
                 channel_name = packet.get("channel")
                 conn = get_db_connection()
                 cursor = conn.cursor()
-                cursor.execute("SELECT username, text, time FROM messages WHERE channel = %s ORDER BY id ASC", (channel_name,))
+                # Geçmişi çekerken medya verilerini de çekiyoruz
+                cursor.execute("SELECT username, text, time, media_data, media_type FROM messages WHERE channel = %s ORDER BY id ASC", (channel_name,))
                 rows = cursor.fetchall()
                 conn.close()
                 
-                history_list = [{"username": r[0], "text": r[1], "time": r[2]} for r in rows]
+                history_list = [{"username": r[0], "text": r[1], "time": r[2], "media_data": r[3], "media_type": r[4]} for r in rows]
                 await websocket.send_text(json.dumps({"type": "history", "messages": history_list}))
             
-            # 3. YENİ MESAJ GÖNDERME
             elif packet.get("type") == "message":
                 now = datetime.now()
                 time_string = now.strftime("%H:%M")
                 
+                # Yeni gelen mesajda medya varsa onları da veritabanına yaz
+                media_data = packet.get('media_data')
+                media_type = packet.get('media_type')
+                
                 conn = get_db_connection()
                 cursor = conn.cursor()
-                cursor.execute("INSERT INTO messages (username, text, time, channel) VALUES (%s, %s, %s, %s)", 
-                               (packet['username'], packet['text'], time_string, packet['channel']))
+                cursor.execute("INSERT INTO messages (username, text, time, channel, media_data, media_type) VALUES (%s, %s, %s, %s, %s, %s)", 
+                               (packet['username'], packet['text'], time_string, packet['channel'], media_data, media_type))
                 conn.commit()
                 conn.close()
                 
                 packet['time'] = time_string
                 await manager.broadcast(json.dumps(packet))
                 
-            # 4. YENİ KULLANICI OLUŞTURMA (YENİ EKLENDİ)
             elif packet.get("type") == "create_user":
                 new_user = packet.get("username")
                 new_pass = packet.get("password")
@@ -140,34 +147,15 @@ async def websocket_endpoint(websocket: WebSocket):
                 try:
                     conn = get_db_connection()
                     cursor = conn.cursor()
-                    # Yeni hesabı standart 'user' rolüyle ekliyoruz
                     cursor.execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)", 
                                    (new_user, hashed_pw, "user"))
                     conn.commit()
                     conn.close()
-                    
-                    # İşlem başarılıysa admine haber ver
-                    await websocket.send_text(json.dumps({
-                        "type": "admin_response", 
-                        "message": f"Başarılı! '{new_user}' adlı kullanıcı sisteme eklendi."
-                    }))
-                except psycopg2.IntegrityError:
-                    # Kullanıcı adı veritabanında zaten varsa
-                    conn.rollback()
-                    await websocket.send_text(json.dumps({
-                        "type": "admin_response", 
-                        "message": "Hata: Bu kullanıcı adı zaten kullanılıyor!"
-                    }))
-                except Exception as e:
-                    await websocket.send_text(json.dumps({
-                        "type": "admin_response", 
-                        "message": "Kayıt sırasında bir hata oluştu."
-                    }))
+                    await websocket.send_text(json.dumps({"type": "admin_response", "message": f"Başarılı! '{new_user}' eklendi."}))
+                except Exception:
+                    await websocket.send_text(json.dumps({"type": "admin_response", "message": "Kayıt sırasında hata oluştu veya kullanıcı adı zaten var!"}))
                 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
-    except Exception as e:
+    except Exception:
         manager.disconnect(websocket)
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
