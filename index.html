@@ -5,255 +5,218 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Discord Klonu</title>
     <style>
-        /* Temel Ayarlar ve Font */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        body {
-            display: flex;
-            height: 100vh;
-            background-color: #36393f; /* Discord ana sohbet arka planı */
-            color: #dcddde; /* Standart yazı rengi */
-        }
-
-        /* Sol Menü (Kanallar) */
-        .sidebar {
-            width: 250px;
-            background-color: #2f3136; /* Discord sol menü rengi */
-            padding: 20px 10px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .sidebar h2 {
-            font-size: 14px;
-            color: #8e9297;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-            padding-left: 10px;
-            letter-spacing: 1px;
-        }
-
-        .channel {
-            padding: 10px;
-            margin-bottom: 5px;
-            border-radius: 5px;
-            cursor: pointer;
-            color: #8e9297;
-            font-weight: 500;
-            transition: 0.2s;
-        }
-
-        .channel:hover, .channel.active {
-            background-color: #393c43;
-            color: #fff;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { display: flex; height: 100vh; background-color: #36393f; color: #dcddde; overflow: hidden; }
+        
+        /* Sol Menü */
+        .sidebar { width: 250px; background-color: #2f3136; padding: 20px 10px; display: flex; flex-direction: column; }
+        .sidebar h2 { font-size: 14px; color: #8e9297; margin-bottom: 15px; text-transform: uppercase; padding-left: 10px; letter-spacing: 1px; }
+        .channel { padding: 10px; margin-bottom: 5px; border-radius: 5px; cursor: pointer; color: #8e9297; font-weight: 500; transition: 0.2s; }
+        .channel:hover, .channel.active { background-color: #393c43; color: #fff; }
+        
+        /* Admin Butonu */
+        #admin-panel-btn { display: none; margin-top: auto; padding: 12px; background-color: #ed4245; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        #admin-panel-btn:hover { background-color: #da373c; }
 
         /* Ana Sohbet Alanı */
-        .chat-area {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Mesajların Listelendiği Yer */
-        .messages {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-        }
-
-        .message {
-            margin-bottom: 20px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .message .username {
-            font-weight: bold;
-            color: #fff;
-            margin-bottom: 5px;
-            font-size: 16px;
-        }
-
-        .message .time {
-            font-size: 12px;
-            color: #72767d;
-            font-weight: normal;
-            margin-left: 8px;
-        }
-
-        .message .text {
-            color: #dcddde;
-            line-height: 1.5;
-            font-size: 15px;
-        }
+        .chat-area { flex: 1; display: flex; flex-direction: column; }
+        .messages { flex: 1; padding: 20px; overflow-y: auto; }
+        .message { margin-bottom: 20px; display: flex; flex-direction: column; }
+        .message .username { font-weight: bold; color: #fff; margin-bottom: 5px; font-size: 16px; }
+        .message .time { font-size: 12px; color: #72767d; font-weight: normal; margin-left: 8px; }
+        .message .text { color: #dcddde; line-height: 1.5; font-size: 15px; }
 
         /* Mesaj Yazma Kutusu */
-        .input-area {
-            padding: 0 20px 20px 20px;
-            background-color: #36393f;
-        }
+        .input-area { padding: 0 20px 20px 20px; background-color: #36393f; }
+        .input-box { display: flex; background-color: #40444b; border-radius: 8px; padding: 10px 15px; }
+        .input-box input { flex: 1; background: transparent; border: none; color: #dcddde; font-size: 15px; outline: none; }
+        .input-box button { background-color: #5865F2; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .input-box button:hover { background-color: #4752C4; }
 
-        .input-box {
-            display: flex;
-            background-color: #40444b; /* Discord input kutusu rengi */
-            border-radius: 8px;
-            padding: 10px 15px;
-        }
-
-        .input-box input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: #dcddde;
-            font-size: 15px;
-            outline: none;
-        }
-
-        .input-box button {
-            background-color: #5865F2; /* Orijinal Discord Mavi/Mor rengi */
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: 0.2s;
-        }
-
-        .input-box button:hover {
-            background-color: #4752C4;
-        }
+        /* Giriş ve Admin Ekranı Tasarımı */
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #2f3136; display: flex; justify-content: center; align-items: center; z-index: 999; }
+        .modal-box { background-color: #36393f; padding: 40px; border-radius: 8px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 350px; }
+        .modal-box input[type="text"], .modal-box input[type="password"] { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 4px; border: none; background: #202225; color: white; outline: none; }
+        .modal-box button { width: 100%; padding: 12px; background-color: #5865F2; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 15px; }
+        .modal-box button.danger { background-color: #ed4245; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-   <div class="sidebar">
+    <div id="login-screen" class="overlay">
+        <div class="modal-box">
+            <h2 style="color: white; margin-bottom: 20px;">Sisteme Giriş</h2>
+            <input type="text" id="login-username" placeholder="Kullanıcı Adı">
+            <input type="password" id="login-password" placeholder="Şifre">
+            
+            <div style="text-align: left; margin-bottom: 20px;">
+                <input type="checkbox" id="remember-me" style="margin-right: 5px; cursor: pointer;">
+                <label for="remember-me" style="color: #8e9297; font-size: 14px; cursor: pointer;">Beni Hatırla</label>
+            </div>
+
+            <button id="login-btn">Giriş Yap</button>
+            <p id="login-error" style="color: #ed4245; margin-top: 15px; display: none; font-size: 14px;">Hatalı kullanıcı adı veya şifre!</p>
+        </div>
+    </div>
+
+    <div id="admin-modal" class="overlay" style="display: none; background-color: rgba(0,0,0,0.8);">
+        <div class="modal-box">
+            <h3 style="color: white; margin-bottom: 20px;">Yeni Kullanıcı Ekle</h3>
+            <input type="text" id="new-username" placeholder="Yeni Kullanıcı Adı">
+            <input type="text" id="new-password" placeholder="Şifre Belirle">
+            <button id="create-user-btn" style="background-color: #43b581;">Kullanıcıyı Oluştur</button>
+            <button id="close-admin-btn" class="danger">İptal / Kapat</button>
+        </div>
+    </div>
+
+    <div class="sidebar">
         <h2>Metin Kanalları</h2>
         <div class="channel active" data-channel="genel-sohbet"># genel-sohbet</div>
         <div class="channel" data-channel="valorant-tayfa"># valorant-tayfa</div>
         <div class="channel" data-channel="siber-guvenlik"># siber-guvenlik</div>
-    </div>
-    
-    <div class="chat-area">
         
-        <div class="messages" id="chat-messages">
-            <div class="message">
-                <div class="username">Sistem <span class="time">Bugün 20:50</span></div>
-                <div class="text">Sunucuya hoş geldin! İlk mesajını aşağıdan gönderebilirsin.</div>
-            </div>
-        </div>
+        <button id="admin-panel-btn">Admin Paneli</button>
+    </div>
 
+    <div class="chat-area">
+        <div class="messages" id="chat-messages"></div>
         <div class="input-area">
             <div class="input-box">
                 <input type="text" id="message-input" placeholder="#genel-sohbet kanalına mesaj gönder...">
                 <button id="send-button">Gönder</button>
             </div>
         </div>
-
     </div>
 
-</body>
-<script>
-let myUsername = prompt("Lütfen kullanıcı adınızı girin:", "Oyuncu");
-if (!myUsername) myUsername = "İsimsiz Kahraman";
+    <script>
+        const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+        const ws = new WebSocket(protocol + window.location.host + "/ws");
 
-const messageInput = document.getElementById('message-input');
-const sendButton = document.getElementById('send-button');
-const chatMessages = document.getElementById('chat-messages');
+        let myUsername = "";
+        let activeChannel = "genel-sohbet";
+        let myRole = "user";
 
-// Varsayılan olarak ilk açılacak kanal
-let activeChannel = "genel-sohbet"; 
+        const loginScreen = document.getElementById('login-screen');
+        const loginBtn = document.getElementById('login-btn');
+        const loginUser = document.getElementById('login-username');
+        const loginPass = document.getElementById('login-password');
+        const loginError = document.getElementById('login-error');
+        const rememberMe = document.getElementById('remember-me');
+        const messageInput = document.getElementById('message-input');
+        const chatMessages = document.getElementById('chat-messages');
 
-// Site HTTP ile açılırsa WS, güvenli HTTPS ile açılırsa WSS kullanacak akıllı kod:
-const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
-const ws = new WebSocket(protocol + window.location.host + "/ws");
+        // 1. HAFIZAYI (BENİ HATIRLA) KONTROL ET
+        window.onload = function() {
+            const savedUser = localStorage.getItem("discord_user");
+            const savedPass = localStorage.getItem("discord_pass");
+            if (savedUser && savedPass) {
+                loginUser.value = savedUser;
+                loginPass.value = savedPass;
+                rememberMe.checked = true;
+            }
+        };
 
-// Bağlantı açıldığı anda aktif kanalın geçmişini sunucudan iste
-ws.onopen = function() {
-    ws.send(JSON.stringify({ type: "load_history", channel: activeChannel }));
-};
-
-// Ekrana mesaj ekleyen yardımcı fonksiyon
-function addMessageToScreen(username, time, text) {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = 'message';
-    messageDiv.innerHTML = `
-        <div class="username">${username} <span class="time">Bugün ${time}</span></div>
-        <div class="text">${text}</div>
-    `;
-    chatMessages.appendChild(messageDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-// Sunucudan veri geldiğinde
-ws.onmessage = function(event) {
-    const data = JSON.parse(event.data);
-    
-    // 1. Gelen veri geçmiş mesajlarsa:
-    if (data.type === "history") {
-        chatMessages.innerHTML = ""; // Ekranı temizle
-        data.messages.forEach(msg => {
-            addMessageToScreen(msg.username, msg.time, msg.text);
+        // 2. GİRİŞ YAPMA
+        loginBtn.addEventListener('click', function() {
+            const u = loginUser.value.trim();
+            const p = loginPass.value.trim();
+            if(u === "" || p === "") return;
+            ws.send(JSON.stringify({ type: "login", username: u, password: p }));
         });
-    } 
-    // 2. Gelen veri yeni bir mesajsa:
-    else if (data.type === "message") {
-        // Sadece bulunduğumuz kanala atılmışsa ekranda göster
-        if (data.channel === activeChannel) {
-            addMessageToScreen(data.username, data.time, data.text);
+
+        // 3. SUNUCUDAN GELEN VERİLERİ YÖNETME
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === "login_response") {
+                if (data.success) {
+                    myUsername = loginUser.value.trim();
+                    myRole = data.role;
+                    loginScreen.style.display = 'none';
+                    
+                    if (rememberMe.checked) {
+                        localStorage.setItem("discord_user", myUsername);
+                        localStorage.setItem("discord_pass", loginPass.value.trim());
+                    } else {
+                        localStorage.removeItem("discord_user");
+                        localStorage.removeItem("discord_pass");
+                    }
+                    
+                    // Eğer giriş yapan admin ise Admin butonunu göster
+                    if(myRole === "admin") {
+                        document.getElementById('admin-panel-btn').style.display = 'block';
+                    }
+                    
+                    ws.send(JSON.stringify({ type: "load_history", channel: activeChannel }));
+                } else {
+                    loginError.style.display = 'block';
+                }
+            }
+            else if (data.type === "history") {
+                chatMessages.innerHTML = "";
+                data.messages.forEach(msg => addMessageToScreen(msg.username, msg.time, msg.text));
+            } 
+            else if (data.type === "message") {
+                if (data.channel === activeChannel) {
+                    addMessageToScreen(data.username, data.time, data.text);
+                }
+            }
+            else if (data.type === "admin_response") {
+                alert(data.message); // Admin yeni kullanıcı eklediğinde gelen bilgi mesajı
+            }
+        };
+
+        function addMessageToScreen(username, time, text) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.innerHTML = `<div class="username">${username} <span class="time">Bugün ${time}</span></div><div class="text">${text}</div>`;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
         }
-    }
-};
 
-// Mesaj Gönderme
-function sendMessage() {
-    const text = messageInput.value.trim();
-    if (text === '') return;
+        // 4. MESAJ GÖNDERME
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            if (text === '') return;
+            ws.send(JSON.stringify({ type: "message", username: myUsername, text: text, channel: activeChannel }));
+            messageInput.value = '';
+        }
+        document.getElementById('send-button').addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
 
-    const messagePacket = {
-        type: "message",
-        username: myUsername,
-        text: text,
-        channel: activeChannel // Mesajın hangi kanala ait olduğunu ekliyoruz
-    };
-    
-    ws.send(JSON.stringify(messagePacket));
-    messageInput.value = '';
-}
+        // 5. KANAL DEĞİŞTİRME
+        const channelElements = document.querySelectorAll('.channel');
+        channelElements.forEach(el => {
+            el.addEventListener('click', function() {
+                channelElements.forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                activeChannel = this.getAttribute('data-channel');
+                messageInput.placeholder = `#${activeChannel} kanalına mesaj gönder...`;
+                ws.send(JSON.stringify({ type: "load_history", channel: activeChannel }));
+            });
+        });
 
-sendButton.addEventListener('click', sendMessage);
-messageInput.addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') sendMessage();
-});
-
-// KANAL DEĞİŞTİRME MANTIĞI
-const channelElements = document.querySelectorAll('.channel');
-
-channelElements.forEach(el => {
-    el.addEventListener('click', function() {
-        // 1. Önceki aktif kanalın rengini normale döndür
-        channelElements.forEach(c => c.classList.remove('active'));
+        // 6. ADMİN PANELİ KONTROLLERİ
+        document.getElementById('admin-panel-btn').addEventListener('click', () => {
+            document.getElementById('admin-modal').style.display = 'flex';
+        });
         
-        // 2. Tıklanan kanalı aktif yap (rengini parlat)
-        this.classList.add('active');
-        
-        // 3. Aktif kanal değişkenini güncelle
-        activeChannel = this.getAttribute('data-channel');
-        
-        // 4. Input kutusunun içindeki yazıyı değiştir
-        messageInput.placeholder = `#${activeChannel} kanalına mesaj gönder...`;
-        
-        // 5. Sunucudan yeni geçtiğimiz kanalın geçmişini iste
-        ws.send(JSON.stringify({ type: "load_history", channel: activeChannel }));
-    });
-});
-</script>
+        document.getElementById('close-admin-btn').addEventListener('click', () => {
+            document.getElementById('admin-modal').style.display = 'none';
+        });
+
+        document.getElementById('create-user-btn').addEventListener('click', () => {
+            const nu = document.getElementById('new-username').value.trim();
+            const np = document.getElementById('new-password').value.trim();
+            if(nu === "" || np === "") {
+                alert("Kullanıcı adı ve şifre boş bırakılamaz!");
+                return;
+            }
+            // Sunucuya yeni kullanıcı oluşturma emri gönder
+            ws.send(JSON.stringify({ type: "create_user", username: nu, password: np }));
+            document.getElementById('new-username').value = '';
+            document.getElementById('new-password').value = '';
+        });
+    </script>
 </body>
-</html>
 </html>
