@@ -24,29 +24,26 @@ def init_db():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # 1. Mesajlar Tablosu
         cursor.execute('''CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, username TEXT, text TEXT, time TEXT, channel TEXT)''')
         try:
             cursor.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_data TEXT")
             cursor.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_type TEXT")
         except: pass
             
-        # 2. Kullanıcılar Tablosu ve Ban Sistemi
         cursor.execute('''CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password_hash TEXT, role TEXT)''')
         try:
             cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE")
+            cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT")
+            cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_pic TEXT")
         except: pass
         
-        # 3. YENİ: Dinamik Kanallar Tablosu
         cursor.execute('''CREATE TABLE IF NOT EXISTS channels (id SERIAL PRIMARY KEY, name TEXT UNIQUE, is_locked BOOLEAN DEFAULT FALSE, password TEXT)''')
         
-        # Varsayılan Admini Ekle
         cursor.execute("SELECT * FROM users WHERE username = 'admin'")
         if not cursor.fetchone():
             hashed_pw = hashlib.sha256("admin123".encode()).hexdigest()
             cursor.execute("INSERT INTO users (username, password_hash, role, is_banned) VALUES (%s, %s, %s, FALSE)", ("admin", hashed_pw, "admin"))
             
-        # Varsayılan Kanalları Ekle (Eğer hiç kanal yoksa)
         cursor.execute("SELECT COUNT(*) FROM channels")
         if cursor.fetchone()[0] == 0:
             cursor.execute("INSERT INTO channels (name) VALUES ('genel-sohbet'), ('valorant-tayfa'), ('siber-guvenlik')")
@@ -77,7 +74,6 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-# Kanalları herkese gönderen yardımcı fonksiyon
 async def broadcast_channels():
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -94,7 +90,6 @@ async def websocket_endpoint(websocket: WebSocket):
             data = await websocket.receive_text()
             packet = json.loads(data)
             
-            # GİRİŞ SİSTEMİ (BAN KONTROLÜ İLE)
             if packet.get("type") == "login":
                 username = packet.get("username")
                 password = packet.get("password")
@@ -102,15 +97,18 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 conn = get_db_connection()
                 cursor = conn.cursor()
-                cursor.execute("SELECT role, is_banned FROM users WHERE username = %s AND password_hash = %s", (username, hashed_pw))
+                # Giriş yaparken profil bilgilerini de çekiyoruz
+                cursor.execute("SELECT role, is_banned, display_name, profile_pic FROM users WHERE username = %s AND password_hash = %s", (username, hashed_pw))
                 user = cursor.fetchone()
                 
                 if user:
-                    if user[1]: # Eğer is_banned True ise
+                    if user[1]:
                         await websocket.send_text(json.dumps({"type": "login_response", "success": False, "error_msg": "Hesabınız sunucudan BANLANDI!"}))
                     else:
-                        await websocket.send_text(json.dumps({"type": "login_response", "success": True, "role": user[0]}))
-                        # Giriş yapana anında güncel kanal listesini yolla
+                        await websocket.send_text(json.dumps({
+                            "type": "login_response", "success": True, "role": user[0],
+                            "display_name": user[2] or username, "profile_pic": user[3] or ""
+                        }))
                         cursor.execute("SELECT name, is_locked FROM channels ORDER BY id ASC")
                         ch_list = [{"name": r[0], "is_locked": r[1]} for r in cursor.fetchall()]
                         await websocket.send_text(json.dumps({"type": "channel_list", "channels": ch_list}))
@@ -118,7 +116,6 @@ async def websocket_endpoint(websocket: WebSocket):
                     await websocket.send_text(json.dumps({"type": "login_response", "success": False, "error_msg": "Hatalı şifre!"}))
                 conn.close()
 
-            # GEÇMİŞİ YÜKLE VEYA ŞİFRELİ KANALA GİRİŞ YAP
             elif packet.get("type") == "load_history":
                 ch_name = packet.get("channel")
                 pwd_attempt = packet.get("password", "")
@@ -126,24 +123,27 @@ async def websocket_endpoint(websocket: WebSocket):
                 conn = get_db_connection()
                 cursor = conn.cursor()
                 
-                # Önce kanal şifreli mi kontrol et
                 cursor.execute("SELECT is_locked, password FROM channels WHERE name = %s", (ch_name,))
                 ch_info = cursor.fetchone()
-                
-                if ch_info and ch_info[0]: # Kanal kilitliyse
+                if ch_info and ch_info[0]:
                     if ch_info[1] != pwd_attempt:
                         await websocket.send_text(json.dumps({"type": "system_error", "message": "Yanlış kanal şifresi!"}))
                         conn.close()
-                        continue # Şifre yanlışsa geçmişi gönderme!
+                        continue
                 
-                cursor.execute("SELECT username, text, time, media_data, media_type FROM messages WHERE channel = %s ORDER BY id ASC", (ch_name,))
+                # Geçmiş mesajları çekerken, mesajı atan kişinin GÜNCEL profil resmini ve adını da alıyoruz
+                cursor.execute("""
+                    SELECT m.username, m.text, m.time, m.media_data, m.media_type, u.display_name, u.profile_pic 
+                    FROM messages m 
+                    LEFT JOIN users u ON m.username = u.username 
+                    WHERE m.channel = %s ORDER BY m.id ASC
+                """, (ch_name,))
                 rows = cursor.fetchall()
                 conn.close()
                 
-                history_list = [{"username": r[0], "text": r[1], "time": r[2], "media_data": r[3], "media_type": r[4]} for r in rows]
+                history_list = [{"username": r[0], "text": r[1], "time": r[2], "media_data": r[3], "media_type": r[4], "display_name": r[5] or r[0], "profile_pic": r[6] or ""} for r in rows]
                 await websocket.send_text(json.dumps({"type": "history", "messages": history_list, "channel": ch_name}))
             
-            # MESAJ GÖNDERME
             elif packet.get("type") == "message":
                 time_string = datetime.now().strftime("%H:%M")
                 conn = get_db_connection()
@@ -155,12 +155,23 @@ async def websocket_endpoint(websocket: WebSocket):
                 packet['time'] = time_string
                 await manager.broadcast(json.dumps(packet))
                 
-            # ADMİN YETKİLERİ (Kullanıcı İşlemleri)
+            # YENİ: PROFİL GÜNCELLEME İŞLEMİ
+            elif packet.get("type") == "update_profile":
+                d_name = packet.get("display_name")
+                p_pic = packet.get("profile_pic")
+                
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("UPDATE users SET display_name = %s, profile_pic = %s WHERE username = %s", (d_name, p_pic, packet['username']))
+                conn.commit()
+                conn.close()
+                
+                await websocket.send_text(json.dumps({"type": "profile_updated", "display_name": d_name, "profile_pic": p_pic}))
+
             elif packet.get("type") == "admin_user_action":
                 action = packet.get("action")
                 target = packet.get("target")
                 val = packet.get("value")
-                
                 conn = get_db_connection()
                 cursor = conn.cursor()
                 try:
@@ -178,36 +189,28 @@ async def websocket_endpoint(websocket: WebSocket):
                 finally:
                     conn.close()
 
-            # ADMİN YETKİLERİ (Kanal İşlemleri)
             elif packet.get("type") == "admin_channel_action":
                 action = packet.get("action")
-                target = packet.get("target") # Eski kanal adı
-                val = packet.get("value") # Yeni kanal adı veya şifre
-                
+                target = packet.get("target")
+                val = packet.get("value")
                 conn = get_db_connection()
                 cursor = conn.cursor()
                 try:
-                    if action == "create":
-                        cursor.execute("INSERT INTO channels (name) VALUES (%s)", (target,))
+                    if action == "create": cursor.execute("INSERT INTO channels (name) VALUES (%s)", (target,))
                     elif action == "delete":
                         cursor.execute("DELETE FROM channels WHERE name = %s", (target,))
                         cursor.execute("DELETE FROM messages WHERE channel = %s", (target,))
                     elif action == "rename":
                         cursor.execute("UPDATE channels SET name = %s WHERE name = %s", (val, target))
                         cursor.execute("UPDATE messages SET channel = %s WHERE channel = %s", (val, target))
-                    elif action == "lock":
-                        cursor.execute("UPDATE channels SET is_locked = TRUE, password = %s WHERE name = %s", (val, target))
-                    elif action == "unlock":
-                        cursor.execute("UPDATE channels SET is_locked = FALSE, password = NULL WHERE name = %s", (target,))
-                    
+                    elif action == "lock": cursor.execute("UPDATE channels SET is_locked = TRUE, password = %s WHERE name = %s", (val, target))
+                    elif action == "unlock": cursor.execute("UPDATE channels SET is_locked = FALSE, password = NULL WHERE name = %s", (target,))
                     conn.commit()
                     await websocket.send_text(json.dumps({"type": "system_msg", "message": f"Kanal işlemi ({action}) başarılı!"}))
                 except Exception as e:
                     await websocket.send_text(json.dumps({"type": "system_error", "message": "Kanal işleminde hata!"}))
                 finally:
                     conn.close()
-                
-                # Kanal değiştiyse herkese haber ver ki sol menüleri güncellensin!
                 await broadcast_channels()
                 
     except WebSocketDisconnect:
