@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Discord Klonu</title>
     <style>
+        /* SIFIRLAMA VE GÖVDE: 100dvh ile mobil tarayıcı çubuğu hatasını önlüyoruz */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        body { display: flex; height: 100vh; background-color: #36393f; color: #dcddde; overflow: hidden; }
+        body { display: flex; height: 100dvh; background-color: #36393f; color: #dcddde; overflow: hidden; }
         
-        /* Orijinal Masaüstü Tasarımı */
+        /* Sol Menü */
         .sidebar { width: 250px; background-color: #2f3136; padding: 20px 10px; display: flex; flex-direction: column; z-index: 10; }
         .sidebar h2 { font-size: 14px; color: #8e9297; margin-bottom: 15px; text-transform: uppercase; padding-left: 10px; margin-top: 10px;}
         #channel-list, #dm-list { overflow-y: auto; margin-bottom: 5px; max-height: 150px;}
@@ -26,21 +27,22 @@
         #admin-panel-btn, #profile-btn { margin-top: 5px; padding: 12px; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;}
         #admin-panel-btn { display: none; background-color: #ed4245; } #profile-btn { background-color: #5865F2; }
         
-        .chat-area { flex: 1; display: flex; flex-direction: column; position: relative; border-right: 1px solid #202225;}
+        /* Ana Sohbet Alanı - Yükseklik kilitlendi (Taşmalar önlendi) */
+        .chat-area { flex: 1; display: flex; flex-direction: column; position: relative; border-right: 1px solid #202225; height: 100%; overflow: hidden; min-width: 0;}
         .messages { flex: 1; padding: 20px; overflow-y: auto; }
         
         .message { display: flex; flex-direction: row; margin-bottom: 20px; }
         .message-avatar { width: 40px; height: 40px; border-radius: 50%; background-color: #5865F2; margin-right: 15px; display: flex; align-items: center; justify-content: center; overflow: hidden; font-weight: bold; color: white; cursor: pointer; transition: 0.2s; flex-shrink:0;}
         .message-avatar:hover { opacity: 0.8; transform: scale(1.05); }
         .message-avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .message-content { flex: 1; min-width: 0; /* Mobil için taşmaları önler */ }
+        .message-content { flex: 1; min-width: 0; }
         .message-header { display: flex; align-items: baseline; margin-bottom: 5px; cursor: pointer; flex-wrap: wrap;}
         .message-header .username { font-weight: bold; color: #fff; font-size: 16px; margin-right: 8px; }
         .message .text { color: #dcddde; line-height: 1.5; margin-bottom: 5px; word-wrap: break-word;}
         .media-preview { max-width: 100%; max-height: 300px; border-radius: 8px; margin-top: 5px; border: 1px solid #202225;}
         .audio-preview { height: 40px; margin-top: 5px; outline: none; width: 100%; max-width: 300px;}
         
-        .input-area { padding: 0 20px 20px 20px; background-color: #36393f; position: relative;}
+        .input-area { padding: 0 20px 20px 20px; background-color: #36393f; position: relative; flex-shrink: 0;}
         .input-box { display: flex; background-color: #40444b; border-radius: 8px; padding: 10px 15px; align-items: center;}
         .input-box input { flex: 1; background: transparent; border: none; color: #dcddde; outline: none; font-size:15px; min-width: 50px;}
         .input-box button { background-color: #5865F2; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: 5px;}
@@ -55,27 +57,30 @@
         .online-user { display: flex; align-items: center; padding: 8px; color: #8e9297; font-weight: 500; }
         .online-dot { width: 10px; height: 10px; background-color: #43b581; border-radius: 50%; margin-right: 10px; flex-shrink: 0;}
 
-        /* Modallar */
-        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 999; }
+        /* Modallar (En üst katman: 2000) */
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 2000; }
         .modal-box { background-color: #36393f; padding: 30px; border-radius: 8px; width: 90%; max-width: 400px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5);}
         .modal-box input, .modal-box textarea { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 4px; border: none; background: #202225; color: white; outline: none; }
         .modal-box button { padding: 10px; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-bottom: 5px; width: 100%;}
         .btn-green { background-color: #43b581; } .btn-red { background-color: #ed4245; } .btn-blue { background-color: #5865F2; } .btn-gray { background-color: #72767d; }
         .profile-pic-preview { width: 100px; height: 100px; border-radius: 50%; background-color: #202225; margin: 0 auto 15px auto; display: flex; justify-content: center; align-items: center; overflow: hidden; font-size: 40px; color: white;}
 
-        /* --- YENİ: MOBİL UYUM (RESPONSIVE) TASARIMI --- */
-        .mobile-header { display: none; background-color: #2f3136; padding: 12px 20px; color: white; justify-content: space-between; align-items: center; border-bottom: 1px solid #202225; font-weight: bold; font-size: 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 5;}
+        /* MOBİL ÜST BAR VE MENÜ ÖRTÜSÜ */
+        .mobile-header { display: none; background-color: #2f3136; padding: 12px 20px; color: white; justify-content: space-between; align-items: center; border-bottom: 1px solid #202225; font-weight: bold; font-size: 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 20; flex-shrink: 0;}
         .mobile-btn { background: none; border: none; color: #dcddde; font-size: 24px; cursor: pointer; display: flex; align-items: center;}
-        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 8; }
+        .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 900; }
+        .sidebar-overlay.active { display: block; }
         
+        /* MOBİL EKRANLAR İÇİN KUSURSUZ DÜZEN */
         @media (max-width: 768px) {
             .mobile-header { display: flex; }
-            .sidebar { position: fixed; left: -280px; height: 100%; width: 280px; transition: left 0.3s ease; box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
+            /* Z-Index 1000 yaparak menülerin her şeyin üstüne çıkmasını sağlıyoruz */
+            .sidebar { position: fixed; top: 0; left: -280px; height: 100%; width: 280px; transition: left 0.3s ease; box-shadow: 2px 0 10px rgba(0,0,0,0.5); z-index: 1000; }
             .sidebar.open { left: 0; }
-            .right-sidebar { position: fixed; right: -250px; height: 100%; width: 250px; transition: right 0.3s ease; box-shadow: -2px 0 10px rgba(0,0,0,0.5); }
+            .right-sidebar { position: fixed; top: 0; right: -250px; height: 100%; width: 250px; transition: right 0.3s ease; box-shadow: -2px 0 10px rgba(0,0,0,0.5); z-index: 1000; }
             .right-sidebar.open { right: 0; }
-            .sidebar-overlay.active { display: block; }
-            .input-area { padding: 0 10px 10px 10px; }
+            
+            .input-area { padding: 0 10px 10px 10px; flex-shrink: 0; }
             .messages { padding: 15px 10px; }
             .message-avatar { width: 35px; height: 35px; margin-right: 10px; font-size: 14px;}
             .message-header .username { font-size: 15px; }
@@ -120,6 +125,7 @@
         </div>
 
         <div class="messages" id="chat-messages"></div>
+        
         <div class="input-area">
             <div class="attach-menu" id="attach-menu"><button id="btn-gallery">🖼️ Galeri</button><button id="btn-camera">📷 Kamera</button><button id="btn-audio-file">🎵 Ses Dosyası</button><button id="btn-mic">🎤 Mikrofon</button></div>
             <input type="file" id="file-gallery" accept="image/*" style="display: none;"><input type="file" id="file-audio" accept="audio/*" style="display: none;">
