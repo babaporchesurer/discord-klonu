@@ -47,7 +47,7 @@ init_db()
 class ConnectionManager:
     def __init__(self):
         self.active_connections: dict[WebSocket, str] = {} 
-        self.voice_users: dict[str, dict] = {} # YENİ: Sesteki kullanıcıları PP ve İsimleriyle tutacak
+        self.voice_users: dict[str, dict] = {}
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -58,7 +58,6 @@ class ConnectionManager:
             uname = self.active_connections[websocket]
             del self.active_connections[websocket]
             await self.broadcast_online_users()
-            # Eğer sesten çıkmadan siteyi kapatırsa, onu ses listesinden de sil
             if uname in self.voice_users:
                 del self.voice_users[uname]
                 await self.broadcast_voice_users()
@@ -79,7 +78,6 @@ class ConnectionManager:
         await self.broadcast(json.dumps({"type": "online_list", "users": online_users}))
         
     async def broadcast_voice_users(self):
-        # Sestekilerin listesini herkese gönder
         v_users = [{"username": k, "display_name": v["display_name"], "profile_pic": v["profile_pic"]} for k, v in self.voice_users.items()]
         await self.broadcast(json.dumps({"type": "voice_list", "users": v_users}))
 
@@ -116,8 +114,6 @@ async def websocket_endpoint(websocket: WebSocket):
                         ch_list = [{"name": r[0], "is_locked": r[1]} for r in cursor.fetchall()]
                         await websocket.send_text(json.dumps({"type": "channel_list", "channels": ch_list}))
                         await manager.broadcast_online_users()
-                        
-                        # Sisteme yeni girene, halihazırda seste kimler var listesini gönder
                         await websocket.send_text(json.dumps({"type": "voice_list", "users": [{"username": k, "display_name": v["display_name"], "profile_pic": v["profile_pic"]} for k, v in manager.voice_users.items()]}))
                 else:
                     await websocket.send_text(json.dumps({"type": "login_response", "success": False, "error_msg": "Hatalı şifre!"}))
@@ -167,20 +163,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 packet['time'] = time_string
                 await manager.broadcast(json.dumps(packet))
                 
-            # --- WEBRTC (SES) VE KULLANICI LİSTESİ YÖNETİMİ ---
             elif packet.get("type") == "join_voice":
                 my_user = manager.active_connections.get(websocket)
-                # Sese katılanı listeye ekle ve herkese bildir
                 manager.voice_users[my_user] = {"display_name": packet.get("display_name"), "profile_pic": packet.get("profile_pic")}
                 await manager.broadcast_voice_users()
-                
                 for ws, uname in list(manager.active_connections.items()):
                     if uname and uname != my_user:
                         await ws.send_text(json.dumps({"type": "user_joined_voice", "username": my_user}))
                         
             elif packet.get("type") == "leave_voice":
                 my_user = manager.active_connections.get(websocket)
-                # Sesten çıkanı listeden sil ve herkese bildir
                 if my_user in manager.voice_users:
                     del manager.voice_users[my_user]
                 await manager.broadcast_voice_users()
@@ -189,7 +181,6 @@ async def websocket_endpoint(websocket: WebSocket):
                 target = packet.get("target")
                 await manager.send_to_user(target, json.dumps(packet))
 
-            # --- DİĞER KOMUTLAR ---
             elif packet.get("type") == "report_user":
                 conn = get_db_connection()
                 cursor = conn.cursor()
@@ -213,26 +204,45 @@ async def websocket_endpoint(websocket: WebSocket):
                 cursor.execute("UPDATE users SET display_name = %s, profile_pic = %s WHERE username = %s", (packet['display_name'], packet['profile_pic'], packet['username']))
                 conn.commit()
                 conn.close()
-                # Eğer sesi açıksa anında PP ve ismini de güncelleyelim
                 if packet['username'] in manager.voice_users:
                     manager.voice_users[packet['username']]['display_name'] = packet['display_name']
                     manager.voice_users[packet['username']]['profile_pic'] = packet['profile_pic']
                     await manager.broadcast_voice_users()
-                    
                 await websocket.send_text(json.dumps({"type": "profile_updated", "display_name": packet['display_name'], "profile_pic": packet['profile_pic']}))
 
+            # --- YENİ: KULLANICI BANLAMA, SİLME VE BAN KALDIRMA İŞLEMLERİ ---
             elif packet.get("type") == "admin_user_action":
                 action, target, val = packet.get("action"), packet.get("target"), packet.get("value")
                 conn = get_db_connection()
                 cursor = conn.cursor()
                 try:
-                    if action == "create": cursor.execute("INSERT INTO users (username, password_hash, role, is_banned) VALUES (%s, %s, %s, FALSE)", (target, hashlib.sha256(val.encode()).hexdigest(), "user"))
-                    elif action == "ban": cursor.execute("UPDATE users SET is_banned = TRUE WHERE username = %s", (target,))
-                    elif action == "delete": cursor.execute("DELETE FROM users WHERE username = %s", (target,))
+                    if action == "create": 
+                        cursor.execute("INSERT INTO users (username, password_hash, role, is_banned) VALUES (%s, %s, %s, FALSE)", (target, hashlib.sha256(val.encode()).hexdigest(), "user"))
+                    
+                    elif action == "ban": 
+                        cursor.execute("UPDATE users SET is_banned = TRUE WHERE username = %s", (target,))
+                        # Güvenlik Protokolü: Kullanıcı o an aktifse bağlantısını anında kes!
+                        for ws, uname in list(manager.active_connections.items()):
+                            if uname == target:
+                                await ws.send_text(json.dumps({"type": "system_error", "message": "Admin tarafından sunucudan BANLANDINIZ!"}))
+                                await ws.close() # Suratına kapat
+                                
+                    elif action == "unban": 
+                        cursor.execute("UPDATE users SET is_banned = FALSE WHERE username = %s", (target,))
+                        
+                    elif action == "delete": 
+                        cursor.execute("DELETE FROM users WHERE username = %s", (target,))
+                        # Siliyorsak da atalım
+                        for ws, uname in list(manager.active_connections.items()):
+                            if uname == target:
+                                await ws.close()
+                                
                     conn.commit()
-                    await websocket.send_text(json.dumps({"type": "system_msg", "message": "Kullanıcı işlemi başarılı!"}))
-                except Exception: await websocket.send_text(json.dumps({"type": "system_error", "message": "Hata oluştu."}))
-                finally: conn.close()
+                    await websocket.send_text(json.dumps({"type": "system_msg", "message": f"Kullanıcı işlemi ({action}) başarılı!"}))
+                except Exception as e: 
+                    await websocket.send_text(json.dumps({"type": "system_error", "message": f"Hata: {e}"}))
+                finally: 
+                    conn.close()
 
             elif packet.get("type") == "admin_channel_action":
                 action, target, val = packet.get("action"), packet.get("target"), packet.get("value")
