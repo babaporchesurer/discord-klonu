@@ -1,13 +1,14 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 import uvicorn
-import psycopg2 # YENİ: PostgreSQL kütüphanemiz
+import psycopg2
 import json
-import hashlib # YENİ: Şifreleme (Siber Güvenlik) için
+import hashlib
 from datetime import datetime
+import os  # YENİ: İşletim sistemi ayarlarını okumak için
 
-# Neon'dan aldığın bağlantı adresini buraya yapıştır:
-DATABASE_URL = "postgresql://neondb_owner:npg_Q9obn1qiVCdS@ep-autumn-water-an7r9ha8-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+# Şifreyi sildik! Artık linki Render'ın gizli kasasından otomatik çekecek.
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 app = FastAPI()
 
