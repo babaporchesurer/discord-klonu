@@ -102,7 +102,15 @@
             <input type="text" id="admin-new-pass" placeholder="Şifre Belirle">
             <button class="btn-green" onclick="admCreateUser()">Hesabı Oluştur</button>
             
-            <h3 style="color: white; border-top:1px solid #4f545c; padding-top:10px; margin-top:15px;">📁 Yeni Kanal Aç</h3>
+            <h3 style="color: white; border-top:1px solid #4f545c; padding-top:10px; margin-top:15px;">🔨 Kullanıcı Yönetimi</h3>
+            <input type="text" id="admin-manage-user" placeholder="Kullanıcı Adı (Ban/Unban/Sil)">
+            <div style="display: flex; gap: 5px; margin-bottom: 15px;">
+                <button class="btn-red" onclick="admManageUser('ban')">Banla</button>
+                <button class="btn-green" onclick="admManageUser('unban')">Ban Kaldır</button>
+                <button class="btn-red" onclick="admManageUser('delete')">Sil</button>
+            </div>
+            
+            <h3 style="color: white; border-top:1px solid #4f545c; padding-top:10px;">📁 Yeni Kanal Aç</h3>
             <input type="text" id="admin-new-chan" placeholder="Kanal Adı (Boşluksuz)">
             <button class="btn-green" onclick="admCreateChan()">Kanalı Oluştur</button>
             
@@ -113,10 +121,8 @@
     <div id="channel-settings-modal" class="overlay" style="display: none;">
         <div class="modal-box">
             <h3 style="color: white; margin-bottom:15px;">Kanal Ayarları: <span id="cs-channel-name" style="color:#5865F2;"></span></h3>
-            
             <input type="text" id="cs-new-name" placeholder="Kanalın Yeni Adını Yaz">
             <button class="btn-blue" onclick="execChanSettings('rename')">Yeniden Adlandır</button>
-            
             <div style="border-top: 1px solid #4f545c; margin: 15px 0; padding-top: 15px;">
                 <input type="text" id="cs-password" placeholder="Şifre Belirle (Kilitlemek İçin)">
                 <div style="display: flex; gap:5px;">
@@ -124,7 +130,6 @@
                     <button class="btn-green" style="flex:1;" onclick="execChanSettings('unlock')">🔓 Kilidi Aç</button>
                 </div>
             </div>
-            
             <div style="border-top: 1px solid #4f545c; margin: 15px 0; padding-top: 15px;">
                 <button class="btn-red" onclick="execChanSettings('delete')">🗑️ Kanalı Tamamen Sil</button>
             </div>
@@ -141,6 +146,7 @@
             <button class="btn-gray" onclick="openReport()">⚠️ Şikayet Et</button>
             
             <button class="btn-red admin-only-btn" style="display:none; margin-top:15px;" onclick="execUserAdmin('ban')">🔨 Bu Kullanıcıyı Banla</button>
+            <button class="btn-green admin-only-btn" style="display:none;" onclick="execUserAdmin('unban')">✅ Banını Kaldır</button>
             <button class="btn-red admin-only-btn" style="display:none;" onclick="execUserAdmin('delete')">🗑️ Hesabı Tamamen Sil</button>
             
             <button class="btn-gray" style="margin-top:15px;" onclick="document.getElementById('user-action-modal').style.display='none'">İptal</button>
@@ -192,7 +198,6 @@
     <div id="audio-container" style="display:none;"></div>
 
     <script>
-        // Mobil Menü Tetikleyicileri
         const sidebar = document.getElementById('sidebar');
         const rightSidebar = document.getElementById('right-sidebar');
         const overlay = document.getElementById('sidebar-overlay');
@@ -202,17 +207,13 @@
         document.getElementById('btn-toggle-users').addEventListener('click', () => { rightSidebar.classList.add('open'); overlay.classList.add('active'); });
         overlay.addEventListener('click', () => { sidebar.classList.remove('open'); rightSidebar.classList.remove('open'); overlay.classList.remove('active'); });
 
-        // Websocket Bağlantısı
         const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
         const ws = new WebSocket(protocol + window.location.host + "/ws");
 
         let myUsername = "", activeChannel = "", myRole = "user", myDisplayName = "", myProfilePic = ""; 
-        let clickedUser = "", pendingChannel = ""; 
-        let targetChanSettings = ""; // Ayarı yapılacak kanal
+        let clickedUser = "", pendingChannel = "", targetChanSettings = ""; 
 
-        if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
-            Notification.requestPermission();
-        }
+        if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") Notification.requestPermission();
 
         window.onload = function() {
             if (localStorage.getItem("discord_user") && localStorage.getItem("discord_pass")) {
@@ -259,22 +260,15 @@
             else if (data.type === "online_list") {
                 document.getElementById('online-count').innerText = data.users.length;
                 document.getElementById('online-list').innerHTML = "";
-                data.users.forEach(u => document.getElementById('online-list').innerHTML += `<div class="online-user"><div class="online-dot"></div> ${u}</div>`);
+                data.users.forEach(u => document.getElementById('online-list').innerHTML += `<div class="online-user"><div class="online-dot"></div> <span style="cursor:pointer;" onclick="showUserAction('${u}', '')">${u}</span></div>`);
             }
             else if (data.type === "channel_list") {
                 document.getElementById('channel-list').innerHTML = "";
                 data.channels.forEach((ch, index) => {
                     if(activeChannel === "" && index === 0) activeChannel = ch.name;
-                    
-                    // YENİ: ADMİNSE KANAL YANINA ÇARK KOY (tıklamayı e.stopPropagation ile kanaldan ayır)
                     let gearHtml = (myRole === "admin") ? `<span class="channel-gear" onclick="openChanSettings(event, '${ch.name}')">⚙️</span>` : '';
                     let lockHtml = ch.is_locked ? '<span class="locked-icon">🔒</span>' : '';
-                    
-                    document.getElementById('channel-list').innerHTML += `
-                        <div class="channel ${activeChannel===ch.name ? 'active':''}" onclick="selectChannel('${ch.name}', ${ch.is_locked})">
-                            <span style="display:flex; align-items:center;"># ${ch.name} ${lockHtml}</span>
-                            ${gearHtml}
-                        </div>`;
+                    document.getElementById('channel-list').innerHTML += `<div class="channel ${activeChannel===ch.name ? 'active':''}" onclick="selectChannel('${ch.name}', ${ch.is_locked})"><span style="display:flex; align-items:center;"># ${ch.name} ${lockHtml}</span>${gearHtml}</div>`;
                 });
                 if (activeChannel) ws.send(JSON.stringify({ type: "load_history", channel: activeChannel }));
             }
@@ -304,10 +298,12 @@
                 area.style.display = 'block';
             }
             else if (data.type === "system_msg") alert("SİSTEM: " + data.message);
-            else if (data.type === "system_error") alert("HATA: " + data.message);
+            else if (data.type === "system_error") {
+                alert("HATA: " + data.message);
+                if (data.message.includes("BANLANDINIZ")) window.location.reload(); // Banlanan kişiyi sayfadan at
+            }
         };
 
-        // --- SES MANTIĞI ---
         const voiceBtn = document.getElementById('voice-btn');
         voiceBtn.addEventListener('click', async () => {
             if (inVoice) {
@@ -351,62 +347,35 @@
             }
         }
 
-        // --- YENİ ADMİN VE YÖNETİM MANTIĞI ---
-
-        // Kanal Ayarları Açılış
         function openChanSettings(e, chName) {
-            e.stopPropagation(); // Normal kanal seçimine girmeyi engeller!
-            targetChanSettings = chName;
-            document.getElementById('cs-channel-name').innerText = chName;
-            document.getElementById('cs-new-name').value = "";
-            document.getElementById('cs-password').value = "";
+            e.stopPropagation(); 
+            targetChanSettings = chName; document.getElementById('cs-channel-name').innerText = chName;
+            document.getElementById('cs-new-name').value = ""; document.getElementById('cs-password').value = "";
             document.getElementById('channel-settings-modal').style.display = 'flex';
         }
-        
-        // Kanal Ayarları Yürütme
         function execChanSettings(act) {
-            let val = "";
-            if(act === 'rename') val = document.getElementById('cs-new-name').value.trim();
-            if(act === 'lock') val = document.getElementById('cs-password').value.trim();
-            ws.send(JSON.stringify({ type: "admin_channel_action", action: act, target: targetChanSettings, value: val }));
-            document.getElementById('channel-settings-modal').style.display = 'none';
+            let val = ""; if(act === 'rename') val = document.getElementById('cs-new-name').value.trim(); if(act === 'lock') val = document.getElementById('cs-password').value.trim();
+            ws.send(JSON.stringify({ type: "admin_channel_action", action: act, target: targetChanSettings, value: val })); document.getElementById('channel-settings-modal').style.display = 'none';
         }
 
-        // Profil Tıklanınca Açılan Pencere (Ban/Sil butonlarını yetkiye göre gösterir)
         function showUserAction(username, picStr) { 
-            if(username === myUsername) return; 
-            clickedUser = username; 
+            if(username === myUsername) return; clickedUser = username; 
             document.getElementById('action-username').innerText = username; 
             document.getElementById('action-avatar').innerHTML = picStr ? `<img src="${picStr}" style="width:100%; height:100%; object-fit:cover;">` : username.charAt(0).toUpperCase(); 
-            
-            // Eğer Admin isek Ban/Sil butonlarını görünür yap
             document.querySelectorAll('.admin-only-btn').forEach(btn => btn.style.display = (myRole === 'admin') ? 'block' : 'none');
-            
             document.getElementById('user-action-modal').style.display = 'flex'; 
         }
 
-        // Kullanıcı Banlama / Silme
-        function execUserAdmin(act) {
-            ws.send(JSON.stringify({ type: "admin_user_action", action: act, target: clickedUser, value: "" }));
-            document.getElementById('user-action-modal').style.display = 'none';
+        function execUserAdmin(act) { ws.send(JSON.stringify({ type: "admin_user_action", action: act, target: clickedUser, value: "" })); document.getElementById('user-action-modal').style.display = 'none'; }
+        
+        // Admin Panelinden Manuel İşlemler
+        function admManageUser(act) {
+            let u = document.getElementById('admin-manage-user').value.trim();
+            if(u) { ws.send(JSON.stringify({ type: "admin_user_action", action: act, target: u, value: "" })); document.getElementById('admin-manage-user').value = ''; } 
+            else alert("Kullanıcı adı yazmalısın!");
         }
-
-        // Yeni Hesap/Kanal Açma (Sadeleştirilmiş Admin Panelinden)
-        function admCreateUser() {
-            let u = document.getElementById('admin-new-user').value.trim();
-            let p = document.getElementById('admin-new-pass').value.trim();
-            if(u && p) {
-                ws.send(JSON.stringify({ type: "admin_user_action", action: "create", target: u, value: p }));
-                document.getElementById('admin-new-user').value = ''; document.getElementById('admin-new-pass').value = '';
-            } else alert("Kullanıcı adı ve şifre boş olamaz!");
-        }
-        function admCreateChan() {
-            let val = document.getElementById('admin-new-chan').value.trim();
-            if(val) {
-                ws.send(JSON.stringify({ type: "admin_channel_action", action: "create", target: val, value: "" }));
-                document.getElementById('admin-new-chan').value = '';
-            }
-        }
+        function admCreateUser() { let u = document.getElementById('admin-new-user').value.trim(); let p = document.getElementById('admin-new-pass').value.trim(); if(u && p) { ws.send(JSON.stringify({ type: "admin_user_action", action: "create", target: u, value: p })); document.getElementById('admin-new-user').value = ''; document.getElementById('admin-new-pass').value = ''; } else alert("Boş olamaz!"); }
+        function admCreateChan() { let val = document.getElementById('admin-new-chan').value.trim(); if(val) { ws.send(JSON.stringify({ type: "admin_channel_action", action: "create", target: val, value: "" })); document.getElementById('admin-new-chan').value = ''; } }
 
         function selectChannel(chName, isLocked) { if(window.innerWidth <= 768) { sidebar.classList.remove('open'); overlay.classList.remove('active'); } if (isLocked && !chName.startsWith('@')) { pendingChannel = chName; document.getElementById('channel-pwd-input').value = ""; document.getElementById('password-modal').style.display = 'flex'; } else { ws.send(JSON.stringify({ type: "load_history", channel: chName })); } }
         document.getElementById('submit-chan-pwd').addEventListener('click', () => { ws.send(JSON.stringify({ type: "load_history", channel: pendingChannel, password: document.getElementById('channel-pwd-input').value })); });
