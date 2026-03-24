@@ -3,15 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Discord Klonu</title>
+    <title>Discord Klonu - Admin Paneli</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
         body { display: flex; height: 100vh; background-color: #36393f; color: #dcddde; overflow: hidden; }
         
+        /* Sol Menü - Kanallar Artık Dinamik! */
         .sidebar { width: 250px; background-color: #2f3136; padding: 20px 10px; display: flex; flex-direction: column; z-index: 10; }
         .sidebar h2 { font-size: 14px; color: #8e9297; margin-bottom: 15px; text-transform: uppercase; padding-left: 10px; }
-        .channel { padding: 10px; margin-bottom: 5px; border-radius: 5px; cursor: pointer; color: #8e9297; font-weight: 500; transition: 0.2s; }
+        #channel-list { flex: 1; overflow-y: auto; }
+        .channel { padding: 10px; margin-bottom: 5px; border-radius: 5px; cursor: pointer; color: #8e9297; font-weight: 500; transition: 0.2s; display: flex; justify-content: space-between;}
         .channel:hover, .channel.active { background-color: #393c43; color: #fff; }
+        .locked-icon { color: #ed4245; font-size: 12px; }
         
         #admin-panel-btn { display: none; margin-top: auto; padding: 12px; background-color: #ed4245; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         
@@ -21,34 +24,33 @@
         .message .username { font-weight: bold; color: #fff; margin-bottom: 5px; font-size: 16px; }
         .message .time { font-size: 12px; color: #72767d; margin-left: 8px; }
         .message .text { color: #dcddde; line-height: 1.5; font-size: 15px; margin-bottom: 5px; }
-        
-        /* Medya Önizleme Tasarımları */
         .media-preview { max-width: 300px; max-height: 300px; border-radius: 8px; margin-top: 5px; border: 1px solid #202225; }
         .audio-preview { height: 40px; margin-top: 5px; outline: none; }
 
         .input-area { padding: 0 20px 20px 20px; background-color: #36393f; position: relative; }
         .input-box { display: flex; background-color: #40444b; border-radius: 8px; padding: 10px 15px; align-items: center; }
         .input-box input { flex: 1; background: transparent; border: none; color: #dcddde; font-size: 15px; outline: none; }
-        .input-box button { background-color: #5865F2; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .input-box button { background-color: #5865F2; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
         
-        /* Yeni Medya Butonu ve Menüsü */
         .attach-btn { background-color: #4f545c !important; border-radius: 50% !important; padding: 8px 13px !important; margin-right: 15px; font-size: 18px; }
-        .attach-btn:hover { background-color: #72767d !important; }
-        .attach-menu { display: none; position: absolute; bottom: 70px; left: 20px; background: #2f3136; border-radius: 8px; padding: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 50; width: 200px; }
-        .attach-menu button { display: block; width: 100%; background: none; border: none; color: white; text-align: left; padding: 12px; cursor: pointer; border-radius: 4px; font-size: 14px; margin-bottom: 2px;}
+        .attach-menu { display: none; position: absolute; bottom: 70px; left: 20px; background: #2f3136; border-radius: 8px; padding: 10px; width: 200px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 50;}
+        .attach-menu button { display: block; width: 100%; background: none; border: none; color: white; text-align: left; padding: 12px; cursor: pointer; border-radius: 4px; margin-bottom: 2px;}
         .attach-menu button:hover { background: #393c43; }
 
         .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 999; }
-        .modal-box { background-color: #36393f; padding: 40px; border-radius: 8px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 350px; }
-        .modal-box input { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 4px; border: none; background: #202225; color: white; outline: none; }
-        .modal-box button { width: 100%; padding: 12px; background-color: #5865F2; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-bottom: 10px;}
-        .modal-box button.danger { background-color: #ed4245; }
+        .modal-box { background-color: #36393f; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 400px; max-height: 90vh; overflow-y: auto;}
+        .modal-box h3 { color: white; margin-bottom: 15px; border-bottom: 1px solid #4f545c; padding-bottom: 10px; margin-top: 20px;}
+        .modal-box input { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 4px; border: none; background: #202225; color: white; outline: none; }
+        .modal-box button { padding: 10px; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-bottom: 5px; font-size: 13px;}
+        .btn-green { background-color: #43b581; } .btn-red { background-color: #ed4245; } .btn-blue { background-color: #5865F2; } .btn-gray { background-color: #72767d; width: 100%; margin-top: 15px;}
+        .admin-row { display: flex; gap: 5px; margin-bottom: 15px; }
+        .admin-row button { flex: 1; margin-bottom: 0; }
     </style>
 </head>
 <body>
 
     <div id="login-screen" class="overlay">
-        <div class="modal-box">
+        <div class="modal-box" style="text-align: center; width: 350px;">
             <h2 style="color: white; margin-bottom: 20px;">Sisteme Giriş</h2>
             <input type="text" id="login-username" placeholder="Kullanıcı Adı">
             <input type="password" id="login-password" placeholder="Şifre">
@@ -56,35 +58,52 @@
                 <input type="checkbox" id="remember-me" style="margin-right: 5px;">
                 <label for="remember-me" style="color: #8e9297; font-size: 14px;">Beni Hatırla</label>
             </div>
-            <button id="login-btn">Giriş Yap</button>
-            <p id="login-error" style="color: #ed4245; display: none; margin-top: 10px;">Hatalı giriş!</p>
+            <button id="login-btn" class="btn-blue" style="width: 100%;">Giriş Yap</button>
+            <p id="login-error" style="color: #ed4245; display: none; margin-top: 10px;"></p>
         </div>
     </div>
 
     <div id="admin-modal" class="overlay" style="display: none;">
         <div class="modal-box">
-            <h3 style="color: white; margin-bottom: 20px;">Yeni Kullanıcı Ekle</h3>
-            <input type="text" id="new-username" placeholder="Kullanıcı Adı">
-            <input type="text" id="new-password" placeholder="Şifre">
-            <button id="create-user-btn" style="background-color: #43b581;">Oluştur</button>
-            <button id="close-admin-btn" class="danger">Kapat</button>
+            <h2 style="color: white; text-align: center;">🛡️ Sistem Yönetimi</h2>
+            
+            <h3>Kullanıcı İşlemleri</h3>
+            <input type="text" id="admin-user-target" placeholder="Hedef Kullanıcı Adı">
+            <input type="text" id="admin-user-val" placeholder="Şifre (Sadece Hesap Açarken)">
+            <div class="admin-row">
+                <button class="btn-green" onclick="admUser('create')">Hesap Aç</button>
+                <button class="btn-red" onclick="admUser('ban')">Banla</button>
+                <button class="btn-red" onclick="admUser('delete')">Hesabı Sil</button>
+            </div>
+
+            <h3>Kanal İşlemleri</h3>
+            <input type="text" id="admin-chan-target" placeholder="Mevcut Kanal Adı (Örn: genel-sohbet)">
+            <input type="text" id="admin-chan-val" placeholder="Yeni Ad veya Şifre (İşleme göre)">
+            <div class="admin-row">
+                <button class="btn-green" onclick="admChan('create')">Kanal Aç</button>
+                <button class="btn-blue" onclick="admChan('rename')">Yeniden Adlandır</button>
+            </div>
+            <div class="admin-row">
+                <button class="btn-red" onclick="admChan('lock')">Şifre Koy</button>
+                <button class="btn-red" onclick="admChan('delete')">Kanalı Sil</button>
+            </div>
+            <button class="btn-gray" onclick="document.getElementById('admin-modal').style.display='none'">Kapat</button>
         </div>
     </div>
 
-    <div id="camera-modal" class="overlay" style="display: none;">
-        <div class="modal-box" style="width: auto; max-width: 90%;">
-            <video id="camera-video" autoplay style="width: 100%; border-radius: 8px; transform: scaleX(-1);"></video>
-            <button id="capture-btn" style="background-color: #43b581; margin-top: 15px;">📸 Fotoğrafı Gönder</button>
-            <button id="close-camera-btn" class="danger">İptal</button>
-            <canvas id="camera-canvas" style="display: none;"></canvas>
+    <div id="password-modal" class="overlay" style="display: none;">
+        <div class="modal-box" style="width: 300px; text-align: center;">
+            <h3 style="margin-top: 0;">Kanal Şifreli 🔒</h3>
+            <input type="password" id="channel-pwd-input" placeholder="Kanal Şifresi">
+            <button class="btn-blue" style="width: 100%;" id="submit-chan-pwd">Giriş Yap</button>
+            <button class="btn-gray" onclick="document.getElementById('password-modal').style.display='none'">İptal</button>
         </div>
     </div>
 
     <div class="sidebar">
         <h2>Metin Kanalları</h2>
-        <div class="channel active" data-channel="genel-sohbet"># genel-sohbet</div>
-        <div class="channel" data-channel="valorant-tayfa"># valorant-tayfa</div>
-        <div class="channel" data-channel="siber-guvenlik"># siber-guvenlik</div>
+        <div id="channel-list">
+            </div>
         <button id="admin-panel-btn">Admin Paneli</button>
     </div>
 
@@ -93,17 +112,16 @@
         <div class="input-area">
             <div class="attach-menu" id="attach-menu">
                 <button id="btn-gallery">🖼️ Galeriden Seç</button>
-                <button id="btn-camera">📷 Kamera Aç</button>
+                <button id="btn-camera">📷 Kamera Aç (Kapalı)</button>
                 <button id="btn-audio-file">🎵 Ses Dosyası Seç</button>
                 <button id="btn-mic">🎤 Mikrofon Kaydı</button>
             </div>
-            
             <input type="file" id="file-gallery" accept="image/*" style="display: none;">
             <input type="file" id="file-audio" accept="audio/*" style="display: none;">
 
             <div class="input-box">
                 <button class="attach-btn" id="attach-btn">+</button>
-                <input type="text" id="message-input" placeholder="#genel-sohbet kanalına mesaj gönder...">
+                <input type="text" id="message-input" placeholder="Mesaj gönder...">
                 <button id="send-button">Gönder</button>
             </div>
         </div>
@@ -113,9 +131,9 @@
         const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
         const ws = new WebSocket(protocol + window.location.host + "/ws");
 
-        let myUsername = "", activeChannel = "genel-sohbet", myRole = "user";
+        let myUsername = "", activeChannel = "", myRole = "user";
+        let pendingChannel = ""; // Şifre girilmek istenen kanal
 
-        // Giriş İşlemleri
         window.onload = function() {
             if (localStorage.getItem("discord_user") && localStorage.getItem("discord_pass")) {
                 document.getElementById('login-username').value = localStorage.getItem("discord_user");
@@ -138,38 +156,75 @@
                     myUsername = document.getElementById('login-username').value.trim();
                     myRole = data.role;
                     document.getElementById('login-screen').style.display = 'none';
-                    
                     if (document.getElementById('remember-me').checked) {
                         localStorage.setItem("discord_user", myUsername);
                         localStorage.setItem("discord_pass", document.getElementById('login-password').value.trim());
-                    } else {
-                        localStorage.removeItem("discord_user");
-                        localStorage.removeItem("discord_pass");
                     }
                     if(myRole === "admin") document.getElementById('admin-panel-btn').style.display = 'block';
-                    ws.send(JSON.stringify({ type: "load_history", channel: activeChannel }));
                 } else {
-                    document.getElementById('login-error').style.display = 'block';
+                    const err = document.getElementById('login-error');
+                    err.innerText = data.error_msg;
+                    err.style.display = 'block';
                 }
             }
+            else if (data.type === "channel_list") {
+                // Sunucudan gelen kanalları sol menüye diz
+                const list = document.getElementById('channel-list');
+                list.innerHTML = "";
+                data.channels.forEach((ch, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'channel';
+                    if(activeChannel === "" && index === 0) activeChannel = ch.name; // İlk açılış
+                    if(activeChannel === ch.name) div.classList.add('active');
+                    
+                    div.innerHTML = `# ${ch.name} ${ch.is_locked ? '<span class="locked-icon">🔒</span>' : ''}`;
+                    div.onclick = () => selectChannel(ch.name, ch.is_locked);
+                    list.appendChild(div);
+                });
+                // Eğer henüz bir kanala girmediksek ilkine gir
+                if (activeChannel) ws.send(JSON.stringify({ type: "load_history", channel: activeChannel }));
+            }
             else if (data.type === "history") {
+                // Geçmiş başarıyla yüklendiyse ekranı güncelle
+                activeChannel = data.channel;
                 document.getElementById('chat-messages').innerHTML = "";
+                document.getElementById('message-input').placeholder = `#${activeChannel} kanalına mesaj gönder...`;
+                document.querySelectorAll('.channel').forEach(c => {
+                    c.classList.remove('active');
+                    if(c.innerText.includes(activeChannel)) c.classList.add('active');
+                });
+                document.getElementById('password-modal').style.display = 'none';
                 data.messages.forEach(msg => addMessageToScreen(msg.username, msg.time, msg.text, msg.media_data, msg.media_type));
             } 
             else if (data.type === "message") {
                 if (data.channel === activeChannel) addMessageToScreen(data.username, data.time, data.text, data.media_data, data.media_type);
             }
-            else if (data.type === "admin_response") alert(data.message);
+            else if (data.type === "system_msg") alert("SİSTEM: " + data.message);
+            else if (data.type === "system_error") alert("HATA: " + data.message);
         };
 
-        // Medyalı Mesajı Ekrana Yazdırma
+        // KANAL SEÇME VE ŞİFRE MANTIĞI
+        function selectChannel(chName, isLocked) {
+            if (isLocked) {
+                pendingChannel = chName;
+                document.getElementById('channel-pwd-input').value = "";
+                document.getElementById('password-modal').style.display = 'flex';
+            } else {
+                ws.send(JSON.stringify({ type: "load_history", channel: chName }));
+            }
+        }
+        
+        document.getElementById('submit-chan-pwd').addEventListener('click', () => {
+            const pwd = document.getElementById('channel-pwd-input').value;
+            ws.send(JSON.stringify({ type: "load_history", channel: pendingChannel, password: pwd }));
+        });
+
         function addMessageToScreen(username, time, text, media_data, media_type) {
             let mediaHTML = "";
             if (media_data) {
                 if (media_type === "image") mediaHTML = `<img src="${media_data}" class="media-preview">`;
                 else if (media_type === "audio") mediaHTML = `<audio controls src="${media_data}" class="audio-preview"></audio>`;
             }
-            
             const div = document.createElement('div');
             div.className = 'message';
             div.innerHTML = `<div class="username">${username} <span class="time">Bugün ${time}</span></div>
@@ -179,7 +234,6 @@
             div.scrollIntoView();
         }
 
-        // Temel Mesaj Gönderme
         function sendPayload(text, mediaData = null, mediaType = null) {
             ws.send(JSON.stringify({ type: "message", username: myUsername, text: text, channel: activeChannel, media_data: mediaData, media_type: mediaType }));
         }
@@ -190,14 +244,10 @@
         });
         document.getElementById('message-input').addEventListener('keypress', e => { if (e.key === 'Enter') document.getElementById('send-button').click(); });
 
-        // --- MEDYA ÖZELLİKLERİ ---
+        // --- MEDYA --- (Kamera kodları yer kaplamasın diye sadeleştirildi)
         const attachBtn = document.getElementById('attach-btn');
         const attachMenu = document.getElementById('attach-menu');
-        
         attachBtn.addEventListener('click', () => { attachMenu.style.display = attachMenu.style.display === 'block' ? 'none' : 'block'; });
-        document.addEventListener('click', e => { if (!attachBtn.contains(e.target) && !attachMenu.contains(e.target)) attachMenu.style.display = 'none'; });
-
-        // 1 & 2. Dosya Seçiciler (Galeri ve Ses Dosyası)
         const processFile = (inputElement, type) => {
             inputElement.click();
             inputElement.onchange = function() {
@@ -207,93 +257,48 @@
                     reader.onload = e => sendPayload("", e.target.result, type);
                     reader.readAsDataURL(file);
                 }
-                this.value = ''; // Reset
-                attachMenu.style.display = 'none';
+                this.value = ''; attachMenu.style.display = 'none';
             };
         };
-
         document.getElementById('btn-gallery').addEventListener('click', () => processFile(document.getElementById('file-gallery'), "image"));
         document.getElementById('btn-audio-file').addEventListener('click', () => processFile(document.getElementById('file-audio'), "audio"));
-
-        // 3. Mikrofon Kaydı
+        
         let mediaRecorder, audioChunks = [];
         document.getElementById('btn-mic').addEventListener('click', async function() {
             if (this.innerText.includes("Durdur")) {
-                mediaRecorder.stop();
-                this.innerText = "🎤 Mikrofon Kaydı";
-                this.style.color = "white";
-                return;
+                mediaRecorder.stop(); this.innerText = "🎤 Mikrofon Kaydı"; this.style.color = "white"; return;
             }
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
+                mediaRecorder = new MediaRecorder(stream); audioChunks = [];
                 mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
                 mediaRecorder.onstop = () => {
-                    const blob = new Blob(audioChunks, { type: 'audio/webm' });
                     const reader = new FileReader();
                     reader.onloadend = () => sendPayload("", reader.result, "audio");
-                    reader.readAsDataURL(blob);
+                    reader.readAsDataURL(new Blob(audioChunks, { type: 'audio/webm' }));
                     stream.getTracks().forEach(track => track.stop());
                 };
-                mediaRecorder.start();
-                this.innerText = "🔴 Kaydediliyor... (Durdur)";
-                this.style.color = "#ed4245";
-            } catch (err) { alert("Mikrofona erişilemedi!"); }
+                mediaRecorder.start(); this.innerText = "🔴 Kaydediliyor... (Durdur)"; this.style.color = "#ed4245";
+            } catch (err) { alert("Mikrofon izni yok!"); }
             attachMenu.style.display = 'none';
         });
 
-        // 4. Kamera Çekimi
-        let videoStream = null;
-        document.getElementById('btn-camera').addEventListener('click', async () => {
-            attachMenu.style.display = 'none';
-            try {
-                videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-                document.getElementById('camera-video').srcObject = videoStream;
-                document.getElementById('camera-modal').style.display = 'flex';
-            } catch (err) { alert("Kameraya erişilemedi!"); }
-        });
-
-        const closeCamera = () => {
-            document.getElementById('camera-modal').style.display = 'none';
-            if (videoStream) videoStream.getTracks().forEach(track => track.stop());
-        };
-
-        document.getElementById('close-camera-btn').addEventListener('click', closeCamera);
-        document.getElementById('capture-btn').addEventListener('click', () => {
-            const video = document.getElementById('camera-video');
-            const canvas = document.getElementById('camera-canvas');
-            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-            // Ön kamera yansımasını düzelt
-            const ctx = canvas.getContext('2d');
-            ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
-            ctx.drawImage(video, 0, 0);
-            
-            sendPayload("", canvas.toDataURL('image/jpeg', 0.8), "image");
-            closeCamera();
-        });
-
-        // Kanal ve Admin Menü İşlemleri
-        document.querySelectorAll('.channel').forEach(el => {
-            el.addEventListener('click', function() {
-                document.querySelectorAll('.channel').forEach(c => c.classList.remove('active'));
-                this.classList.add('active');
-                activeChannel = this.getAttribute('data-channel');
-                document.getElementById('message-input').placeholder = `#${activeChannel} kanalına mesaj gönder...`;
-                ws.send(JSON.stringify({ type: "load_history", channel: activeChannel }));
-            });
-        });
-
+        // --- ADMİN İŞLEMLERİ FONKSİYONLARI ---
         document.getElementById('admin-panel-btn').addEventListener('click', () => document.getElementById('admin-modal').style.display = 'flex');
-        document.getElementById('close-admin-btn').addEventListener('click', () => document.getElementById('admin-modal').style.display = 'none');
-        document.getElementById('create-user-btn').addEventListener('click', () => {
-            const nu = document.getElementById('new-username').value.trim();
-            const np = document.getElementById('new-password').value.trim();
-            if(nu && np) {
-                ws.send(JSON.stringify({ type: "create_user", username: nu, password: np }));
-                document.getElementById('new-username').value = ''; document.getElementById('new-password').value = '';
-            }
-        });
+        
+        function admUser(act) {
+            const t = document.getElementById('admin-user-target').value.trim();
+            const v = document.getElementById('admin-user-val').value.trim();
+            if(!t) return alert("Kullanıcı adı yazmalısın!");
+            ws.send(JSON.stringify({ type: "admin_user_action", action: act, target: t, value: v }));
+        }
+
+        function admChan(act) {
+            const t = document.getElementById('admin-chan-target').value.trim();
+            const v = document.getElementById('admin-chan-val').value.trim();
+            if(!t) return alert("Kanal adı yazmalısın!");
+            ws.send(JSON.stringify({ type: "admin_channel_action", action: act, target: t, value: v }));
+        }
     </script>
 </body>
 </html>
