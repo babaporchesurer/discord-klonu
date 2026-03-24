@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord Klonu</title>
+    <style>
+        /* Temel Ayarlar ve Font */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            display: flex;
+            height: 100vh;
+            background-color: #36393f; /* Discord ana sohbet arka planı */
+            color: #dcddde; /* Standart yazı rengi */
+        }
+
+        /* Sol Menü (Kanallar) */
+        .sidebar {
+            width: 250px;
+            background-color: #2f3136; /* Discord sol menü rengi */
+            padding: 20px 10px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar h2 {
+            font-size: 14px;
+            color: #8e9297;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            padding-left: 10px;
+            letter-spacing: 1px;
+        }
+
+        .channel {
+            padding: 10px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            color: #8e9297;
+            font-weight: 500;
+            transition: 0.2s;
+        }
+
+        .channel:hover, .channel.active {
+            background-color: #393c43;
+            color: #fff;
+        }
+
+        /* Ana Sohbet Alanı */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Mesajların Listelendiği Yer */
+        .messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message .username {
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+
+        .message .time {
+            font-size: 12px;
+            color: #72767d;
+            font-weight: normal;
+            margin-left: 8px;
+        }
+
+        .message .text {
+            color: #dcddde;
+            line-height: 1.5;
+            font-size: 15px;
+        }
+
+        /* Mesaj Yazma Kutusu */
+        .input-area {
+            padding: 0 20px 20px 20px;
+            background-color: #36393f;
+        }
+
+        .input-box {
+            display: flex;
+            background-color: #40444b; /* Discord input kutusu rengi */
+            border-radius: 8px;
+            padding: 10px 15px;
+        }
+
+        .input-box input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #dcddde;
+            font-size: 15px;
+            outline: none;
+        }
+
+        .input-box button {
+            background-color: #5865F2; /* Orijinal Discord Mavi/Mor rengi */
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .input-box button:hover {
+            background-color: #4752C4;
+        }
+    </style>
+</head>
+<body>
+
+   <div class="sidebar">
+        <h2>Metin Kanalları</h2>
+        <div class="channel active" data-channel="genel-sohbet"># genel-sohbet</div>
+        <div class="channel" data-channel="valorant-tayfa"># valorant-tayfa</div>
+        <div class="channel" data-channel="siber-guvenlik"># siber-guvenlik</div>
+    </div>
+    
+    <div class="chat-area">
+        
+        <div class="messages" id="chat-messages">
+            <div class="message">
+                <div class="username">Sistem <span class="time">Bugün 20:50</span></div>
+                <div class="text">Sunucuya hoş geldin! İlk mesajını aşağıdan gönderebilirsin.</div>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <div class="input-box">
+                <input type="text" id="message-input" placeholder="#genel-sohbet kanalına mesaj gönder...">
+                <button id="send-button">Gönder</button>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+<script>
+let myUsername = prompt("Lütfen kullanıcı adınızı girin:", "Oyuncu");
+if (!myUsername) myUsername = "İsimsiz Kahraman";
+
+const messageInput = document.getElementById('message-input');
+const sendButton = document.getElementById('send-button');
+const chatMessages = document.getElementById('chat-messages');
+
+// Varsayılan olarak ilk açılacak kanal
+let activeChannel = "genel-sohbet"; 
+
+// Site HTTP ile açılırsa WS, güvenli HTTPS ile açılırsa WSS kullanacak akıllı kod:
+const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+const ws = new WebSocket(protocol + window.location.host + "/ws");
+
+// Bağlantı açıldığı anda aktif kanalın geçmişini sunucudan iste
+ws.onopen = function() {
+    ws.send(JSON.stringify({ type: "load_history", channel: activeChannel }));
+};
+
+// Ekrana mesaj ekleyen yardımcı fonksiyon
+function addMessageToScreen(username, time, text) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message';
+    messageDiv.innerHTML = `
+        <div class="username">${username} <span class="time">Bugün ${time}</span></div>
+        <div class="text">${text}</div>
+    `;
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Sunucudan veri geldiğinde
+ws.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    
+    // 1. Gelen veri geçmiş mesajlarsa:
+    if (data.type === "history") {
+        chatMessages.innerHTML = ""; // Ekranı temizle
+        data.messages.forEach(msg => {
+            addMessageToScreen(msg.username, msg.time, msg.text);
+        });
+    } 
+    // 2. Gelen veri yeni bir mesajsa:
+    else if (data.type === "message") {
+        // Sadece bulunduğumuz kanala atılmışsa ekranda göster
+        if (data.channel === activeChannel) {
+            addMessageToScreen(data.username, data.time, data.text);
+        }
+    }
+};
+
+// Mesaj Gönderme
+function sendMessage() {
+    const text = messageInput.value.trim();
+    if (text === '') return;
+
+    const messagePacket = {
+        type: "message",
+        username: myUsername,
+        text: text,
+        channel: activeChannel // Mesajın hangi kanala ait olduğunu ekliyoruz
+    };
+    
+    ws.send(JSON.stringify(messagePacket));
+    messageInput.value = '';
+}
+
+sendButton.addEventListener('click', sendMessage);
+messageInput.addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') sendMessage();
+});
+
+// KANAL DEĞİŞTİRME MANTIĞI
+const channelElements = document.querySelectorAll('.channel');
+
+channelElements.forEach(el => {
+    el.addEventListener('click', function() {
+        // 1. Önceki aktif kanalın rengini normale döndür
+        channelElements.forEach(c => c.classList.remove('active'));
+        
+        // 2. Tıklanan kanalı aktif yap (rengini parlat)
+        this.classList.add('active');
+        
+        // 3. Aktif kanal değişkenini güncelle
+        activeChannel = this.getAttribute('data-channel');
+        
+        // 4. Input kutusunun içindeki yazıyı değiştir
+        messageInput.placeholder = `#${activeChannel} kanalına mesaj gönder...`;
+        
+        // 5. Sunucudan yeni geçtiğimiz kanalın geçmişini iste
+        ws.send(JSON.stringify({ type: "load_history", channel: activeChannel }));
+    });
+});
+</script>
+</body>
+</html>
+</html>
