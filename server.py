@@ -11,10 +11,11 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 app = FastAPI()
 
 @app.get("/")
+@app.head("/") # YENİ: Uptime botlarının 405 hatası vermesini engeller
 async def get():
     with open("index.html", "r", encoding="utf-8") as f:
         html_content = f.read()
-    return HTMLResponse(html_content)
+    return HTMLResponse(html_content))
 
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL)
