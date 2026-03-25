@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord Klonu</title>
+    <link rel="apple-touch-icon" href="https://i.ibb.co/senin-logon.png">
+    <link rel="icon" type="image/png" href="https://i.ibb.co/senin-logon.png">
+    
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#2f3136">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <title>Discord Klonu</title>
-    <link rel="apple-touch-icon" href="https://ibb.co/TMbGBJD4">
-    <link rel="icon" type="image/png" href="https://ibb.co/TMbGBJD4">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
         body { display: flex; height: 100dvh; background-color: #36393f; color: #dcddde; overflow: hidden; }
@@ -32,7 +32,6 @@
         .voice-user-avatar { width: 24px; height: 24px; border-radius: 50%; background-color: #5865F2; margin-right: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: 12px; color: white; flex-shrink: 0;}
         .voice-user-avatar img { width: 100%; height: 100%; object-fit: cover; }
         
-        /* YENİ BİLDİRİM BUTONU TASARIMI EKLENDİ */
         #admin-panel-btn, #profile-btn, #notify-btn { margin-top: 5px; padding: 12px; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;}
         #admin-panel-btn { display: none; background-color: #ed4245; } 
         #profile-btn { background-color: #5865F2; }
@@ -42,7 +41,6 @@
         .chat-area { flex: 1; display: flex; flex-direction: column; position: relative; border-right: 1px solid #202225; height: 100%; overflow: hidden; min-width: 0;}
         .messages { flex: 1; padding: 20px; overflow-y: auto; }
         
-        /* YENİ: ETİKETLENEN MESAJ TASARIMI (SARI VURGU) */
         .message { display: flex; flex-direction: row; margin-bottom: 20px; padding: 5px; border-radius: 4px; transition: 0.3s;}
         .message.mentioned { background-color: rgba(250, 166, 26, 0.1); border-left: 3px solid #faa61a; padding-left: 10px; }
         .mention-text { color: #faa61a; font-weight: bold; background: rgba(250, 166, 26, 0.2); padding: 0 4px; border-radius: 3px; }
@@ -85,6 +83,11 @@
         .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 900; }
         .sidebar-overlay.active { display: block; }
         
+        /* Robot Doğrulama Kutu Tasarımı */
+        .captcha-box { background-color: #202225; padding: 15px; border-radius: 5px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; border: 1px solid #4f545c;}
+        .captcha-box span { font-weight: bold; color: #43b581; font-size: 18px;}
+        .captcha-box input { width: 80px; margin-bottom: 0; text-align: center; font-size: 16px; font-weight: bold;}
+        
         @media (max-width: 768px) {
             .mobile-header { display: flex; }
             .sidebar { position: fixed; top: 0; left: -280px; height: 100%; width: 280px; transition: left 0.3s ease; box-shadow: 2px 0 10px rgba(0,0,0,0.5); z-index: 1000; }
@@ -103,9 +106,42 @@
 
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
-    <div id="login-screen" class="overlay"><div class="modal-box" style="text-align: center;"><h2 style="color: white; margin-bottom: 20px;">Sisteme Giriş</h2><input type="text" id="login-username" placeholder="Kullanıcı Adı"><input type="password" id="login-password" placeholder="Şifre"><div style="text-align: left; margin-bottom: 20px;"><input type="checkbox" id="remember-me" style="margin-right: 5px;"><label for="remember-me" style="color: #8e9297; font-size: 14px;">Beni Hatırla</label></div><button id="login-btn" class="btn-blue">Giriş Yap</button><p id="login-error" style="color: #ed4245; display: none; margin-top: 10px;"></p></div></div>
+    <div id="login-screen" class="overlay">
+        <div class="modal-box" style="text-align: center;">
+            <h2 style="color: white; margin-bottom: 20px;">Sisteme Giriş</h2>
+            <input type="text" id="login-username" placeholder="Kullanıcı Adı">
+            <input type="password" id="login-password" placeholder="Şifre">
+            <div style="text-align: left; margin-bottom: 20px;">
+                <input type="checkbox" id="remember-me" style="margin-right: 5px;">
+                <label for="remember-me" style="color: #8e9297; font-size: 14px;">Beni Hatırla</label>
+            </div>
+            <button id="login-btn" class="btn-blue">Giriş Yap</button>
+            <button id="show-register-btn" class="btn-gray" style="margin-top: 10px;">Hesabın Yok Mu? Kayıt Ol</button>
+            <p id="login-error" style="color: #ed4245; display: none; margin-top: 10px;"></p>
+        </div>
+    </div>
+
+    <div id="register-screen" class="overlay" style="display: none;">
+        <div class="modal-box" style="text-align: center;">
+            <h2 style="color: white; margin-bottom: 20px;">Yeni Hesap Oluştur</h2>
+            <input type="text" id="reg-username" placeholder="Kullanıcı Adı Belirle">
+            <input type="password" id="reg-password" placeholder="Şifre Belirle">
+            
+            <div class="captcha-box">
+                <span id="captcha-question">5 + 3 = ?</span>
+                <input type="number" id="captcha-answer" placeholder="Cevap">
+            </div>
+            
+            <button id="register-btn" class="btn-green">Kayıt Ol</button>
+            <button id="show-login-btn" class="btn-gray" style="margin-top: 10px;">Geri Dön</button>
+            <p id="register-error" style="color: #ed4245; display: none; margin-top: 10px;"></p>
+        </div>
+    </div>
+
     <div id="profile-modal" class="overlay" style="display: none;"><div class="modal-box" style="text-align: center;"><h2 style="color: white;">Profilim</h2><div class="profile-pic-preview" id="edit-pic-preview">?</div><input type="file" id="edit-pic-upload" accept="image/*" style="display: none;"><button class="btn-blue" onclick="document.getElementById('edit-pic-upload').click()">📷 Fotoğraf Yükle</button><input type="text" id="edit-display-name" placeholder="Görünen Ad (Örn: KralOyuncu)" style="margin-top: 15px;"><button class="btn-green" id="save-profile-btn">Kaydet</button><button class="btn-gray" onclick="document.getElementById('profile-modal').style.display='none'">İptal</button></div></div>
-    <div id="admin-modal" class="overlay" style="display: none;"><div class="modal-box"><h2 style="color: white; text-align: center; margin-bottom:15px;">🛡️ Sistem Yönetimi</h2><button class="btn-blue" onclick="fetchReports()">📩 Şikayetleri Oku</button><div id="admin-reports-area" style="background:#202225; padding:10px; border-radius:4px; margin-bottom:15px; display:none; max-height:150px; overflow-y:auto; color:white; font-size:13px;"></div><h3 style="color: white; border-top:1px solid #4f545c; padding-top:10px;">👤 Yeni Hesap Aç</h3><input type="text" id="admin-new-user" placeholder="Kullanıcı Adı"><input type="text" id="admin-new-pass" placeholder="Şifre Belirle"><button class="btn-green" onclick="admCreateUser()">Hesabı Oluştur</button><h3 style="color: white; border-top:1px solid #4f545c; padding-top:10px; margin-top:15px;">🔨 Kullanıcı Yönetimi</h3><input type="text" id="admin-manage-user" placeholder="Kullanıcı Adı (Ban/Unban/Sil)"><div style="display: flex; gap: 5px; margin-bottom: 15px;"><button class="btn-red" onclick="admManageUser('ban')">Banla</button><button class="btn-green" onclick="admManageUser('unban')">Ban Kaldır</button><button class="btn-red" onclick="admManageUser('delete')">Sil</button></div><h3 style="color: white; border-top:1px solid #4f545c; padding-top:10px;">📁 Yeni Kanal Aç</h3><input type="text" id="admin-new-chan" placeholder="Kanal Adı (Boşluksuz)"><button class="btn-green" onclick="admCreateChan()">Kanalı Oluştur</button><button class="btn-gray" style="margin-top:20px;" onclick="document.getElementById('admin-modal').style.display='none'">Kapat</button></div></div>
+    
+    <div id="admin-modal" class="overlay" style="display: none;"><div class="modal-box"><h2 style="color: white; text-align: center; margin-bottom:15px;">🛡️ Sistem Yönetimi</h2><button class="btn-blue" onclick="fetchReports()">📩 Şikayetleri Oku</button><div id="admin-reports-area" style="background:#202225; padding:10px; border-radius:4px; margin-bottom:15px; display:none; max-height:150px; overflow-y:auto; color:white; font-size:13px;"></div><h3 style="color: white; border-top:1px solid #4f545c; padding-top:10px; margin-top:15px;">🔨 Kullanıcı Yönetimi</h3><input type="text" id="admin-manage-user" placeholder="Kullanıcı Adı (Ban/Unban/Sil)"><div style="display: flex; gap: 5px; margin-bottom: 15px;"><button class="btn-red" onclick="admManageUser('ban')">Banla</button><button class="btn-green" onclick="admManageUser('unban')">Ban Kaldır</button><button class="btn-red" onclick="admManageUser('delete')">Sil</button></div><h3 style="color: white; border-top:1px solid #4f545c; padding-top:10px;">📁 Yeni Kanal Aç</h3><input type="text" id="admin-new-chan" placeholder="Kanal Adı (Boşluksuz)"><button class="btn-green" onclick="admCreateChan()">Kanalı Oluştur</button><button class="btn-gray" style="margin-top:20px;" onclick="document.getElementById('admin-modal').style.display='none'">Kapat</button></div></div>
+    
     <div id="channel-settings-modal" class="overlay" style="display: none;"><div class="modal-box"><h3 style="color: white; margin-bottom:15px;">Kanal Ayarları: <span id="cs-channel-name" style="color:#5865F2;"></span></h3><input type="text" id="cs-new-name" placeholder="Kanalın Yeni Adını Yaz"><button class="btn-blue" onclick="execChanSettings('rename')">Yeniden Adlandır</button><div style="border-top: 1px solid #4f545c; margin: 15px 0; padding-top: 15px;"><input type="text" id="cs-password" placeholder="Şifre Belirle (Kilitlemek İçin)"><div style="display: flex; gap:5px;"><button class="btn-red" style="flex:1;" onclick="execChanSettings('lock')">🔒 Şifrele</button><button class="btn-green" style="flex:1;" onclick="execChanSettings('unlock')">🔓 Kilidi Aç</button></div></div><div style="border-top: 1px solid #4f545c; margin: 15px 0; padding-top: 15px;"><button class="btn-red" onclick="execChanSettings('delete')">🗑️ Kanalı Tamamen Sil</button></div><button class="btn-gray" onclick="document.getElementById('channel-settings-modal').style.display='none'">İptal</button></div></div>
     <div id="user-action-modal" class="overlay" style="display: none;"><div class="modal-box" style="text-align: center; width: 300px;"><div id="action-avatar" style="width:80px; height:80px; border-radius:50%; background:#5865F2; margin:0 auto 15px auto; display:flex; align-items:center; justify-content:center; font-size:30px; color:white; overflow:hidden;"></div><h2 id="action-username" style="color: white; margin-bottom: 20px;">Kullanıcı</h2><button class="btn-blue" onclick="startDM()">💬 Özel Mesaj (DM)</button><button class="btn-gray" onclick="openReport()">⚠️ Şikayet Et</button><button class="btn-red admin-only-btn" style="display:none; margin-top:15px;" onclick="execUserAdmin('ban')">🔨 Bu Kullanıcıyı Banla</button><button class="btn-green admin-only-btn" style="display:none;" onclick="execUserAdmin('unban')">✅ Banını Kaldır</button><button class="btn-red admin-only-btn" style="display:none;" onclick="execUserAdmin('delete')">🗑️ Hesabı Tamamen Sil</button><button class="btn-gray" style="margin-top:15px;" onclick="document.getElementById('user-action-modal').style.display='none'">İptal</button></div></div>
     <div id="report-modal" class="overlay" style="display: none;"><div class="modal-box"><h3 style="color: white; margin-bottom:15px;">Şikayet: <span id="report-target-name"></span></h3><textarea id="report-reason" rows="4" placeholder="Neden?"></textarea><button class="btn-red" onclick="sendReport()">İlet</button><button class="btn-gray" onclick="document.getElementById('report-modal').style.display='none'">Vazgeç</button></div></div>
@@ -167,26 +203,39 @@
         document.getElementById('btn-toggle-users').addEventListener('click', () => { rightSidebar.classList.add('open'); overlay.classList.add('active'); });
         overlay.addEventListener('click', () => { sidebar.classList.remove('open'); rightSidebar.classList.remove('open'); overlay.classList.remove('active'); });
 
-        // BİLDİRİM İZNİ BUTONU MANTIĞI
         document.getElementById('notify-btn').addEventListener('click', () => {
             if ("Notification" in window) {
                 Notification.requestPermission().then(permission => {
                     if (permission === "granted") {
-                        alert("Harika! Artık mesajlar ve etiketlemeler sana bildirim olarak gelecek.");
-                        document.getElementById('notify-btn').style.display = "none"; // İzin verildiyse butonu gizle
-                    } else {
-                        alert("Bildirim izni verilmedi. Sağ alttan bildirim alamayacaksın.");
-                    }
+                        alert("Harika! Artık mesajlar sana bildirim olarak gelecek.");
+                        document.getElementById('notify-btn').style.display = "none";
+                    } else alert("Bildirim izni verilmedi.");
                 });
-            } else {
-                alert("Tarayıcınız bildirimleri desteklemiyor.");
-            }
+            } else alert("Tarayıcınız bildirimleri desteklemiyor.");
         });
         
-        // Eğer zaten izin verildiyse butonu baştan gizle
-        if ("Notification" in window && Notification.permission === "granted") {
-            document.getElementById('notify-btn').style.display = "none";
+        if ("Notification" in window && Notification.permission === "granted") document.getElementById('notify-btn').style.display = "none";
+
+        // --- YENİ: CAPTCHA VE KAYIT MANTIĞI ---
+        let currentCaptchaAns = 0;
+        function generateCaptcha() {
+            const num1 = Math.floor(Math.random() * 15) + 1;
+            const num2 = Math.floor(Math.random() * 10) + 1;
+            currentCaptchaAns = num1 + num2;
+            document.getElementById('captcha-question').innerText = `Doğrulama: ${num1} + ${num2} = ?`;
+            document.getElementById('captcha-answer').value = '';
         }
+
+        document.getElementById('show-register-btn').addEventListener('click', () => {
+            document.getElementById('login-screen').style.display = 'none';
+            generateCaptcha();
+            document.getElementById('register-screen').style.display = 'flex';
+        });
+
+        document.getElementById('show-login-btn').addEventListener('click', () => {
+            document.getElementById('register-screen').style.display = 'none';
+            document.getElementById('login-screen').style.display = 'flex';
+        });
 
         const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
         const ws = new WebSocket(protocol + window.location.host + "/ws");
@@ -206,13 +255,46 @@
             ws.send(JSON.stringify({ type: "login", username: document.getElementById('login-username').value.trim(), password: document.getElementById('login-password').value.trim() }));
         });
 
+        document.getElementById('register-btn').addEventListener('click', function() {
+            const u = document.getElementById('reg-username').value.trim();
+            const p = document.getElementById('reg-password').value.trim();
+            const ans = parseInt(document.getElementById('captcha-answer').value.trim());
+            const errBox = document.getElementById('register-error');
+
+            if(!u || !p) { errBox.innerText = "Lütfen tüm alanları doldurun!"; errBox.style.display = "block"; return; }
+            if(ans !== currentCaptchaAns) { 
+                errBox.innerText = "Robot doğrulaması yanlış! Lütfen işlemi tekrar çözün."; 
+                errBox.style.display = "block"; 
+                generateCaptcha(); 
+                return; 
+            }
+            
+            errBox.style.display = "none";
+            ws.send(JSON.stringify({ type: "register", username: u, password: p }));
+        });
+
         let inVoice = false; let localStream = null; let peerConnections = {}; 
         const rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] }; 
 
         ws.onmessage = async function(event) {
             const data = JSON.parse(event.data);
             
-            if (data.type === "user_joined_voice") { if(inVoice) createOffer(data.username); }
+            // YENİ: KAYIT CEVABI DİNLEYİCİSİ
+            if (data.type === "register_response") {
+                if(data.success) {
+                    alert("Hesap başarıyla oluşturuldu! Şimdi giriş yapabilirsiniz.");
+                    document.getElementById('register-screen').style.display = 'none';
+                    document.getElementById('login-screen').style.display = 'flex';
+                    document.getElementById('login-username').value = document.getElementById('reg-username').value;
+                    document.getElementById('login-password').value = "";
+                } else {
+                    document.getElementById('register-error').innerText = data.error_msg;
+                    document.getElementById('register-error').style.display = 'block';
+                    generateCaptcha();
+                }
+            }
+            
+            else if (data.type === "user_joined_voice") { if(inVoice) createOffer(data.username); }
             else if (data.type === "voice_list") {
                 const vList = document.getElementById('voice-users-list'); vList.innerHTML = "";
                 data.users.forEach(u => {
@@ -259,7 +341,6 @@
                 document.querySelectorAll('.channel').forEach(c => { c.classList.remove('active'); if(c.innerText.includes(activeChannel)) c.classList.add('active'); });
                 document.getElementById('password-modal').style.display = 'none';
                 
-                // Geçmiş yüklenirken etiket var mı diye kontrol et
                 data.messages.forEach(msg => {
                     let isMentioned = msg.text && msg.text.includes(`@${myUsername}`);
                     let text = msg.text;
@@ -268,7 +349,6 @@
                 });
             } 
             else if (data.type === "message") {
-                // Etiket kontrolü
                 let isMentioned = data.text && data.text.includes(`@${myUsername}`);
                 let text = data.text;
                 if(isMentioned) text = text.replace(new RegExp(`@${myUsername}`, 'g'), `<span class="mention-text">@${myUsername}</span>`);
@@ -277,7 +357,6 @@
                     addMessageToScreen(data.username, data.time, text, data.media_data, data.media_type, data.display_name, data.profile_pic, isMentioned);
                 }
                 
-                // BİLDİRİM FIRLATMA MANTIĞI (Etiketlendiyse SEKMEYE BAKSA BİLE TİTRET)
                 if (data.username !== myUsername) {
                     if (isMentioned || document.hidden) {
                         if ("Notification" in window && Notification.permission === "granted") {
@@ -364,9 +443,7 @@
         }
 
         function execUserAdmin(act) { ws.send(JSON.stringify({ type: "admin_user_action", action: act, target: clickedUser, value: "" })); document.getElementById('user-action-modal').style.display = 'none'; }
-        
         function admManageUser(act) { let u = document.getElementById('admin-manage-user').value.trim(); if(u) { ws.send(JSON.stringify({ type: "admin_user_action", action: act, target: u, value: "" })); document.getElementById('admin-manage-user').value = ''; } else alert("Kullanıcı adı yazmalısın!"); }
-        function admCreateUser() { let u = document.getElementById('admin-new-user').value.trim(); let p = document.getElementById('admin-new-pass').value.trim(); if(u && p) { ws.send(JSON.stringify({ type: "admin_user_action", action: "create", target: u, value: p })); document.getElementById('admin-new-user').value = ''; document.getElementById('admin-new-pass').value = ''; } else alert("Boş olamaz!"); }
         function admCreateChan() { let val = document.getElementById('admin-new-chan').value.trim(); if(val) { ws.send(JSON.stringify({ type: "admin_channel_action", action: "create", target: val, value: "" })); document.getElementById('admin-new-chan').value = ''; } }
 
         function selectChannel(chName, isLocked) { if(window.innerWidth <= 768) { sidebar.classList.remove('open'); overlay.classList.remove('active'); } if (isLocked && !chName.startsWith('@')) { pendingChannel = chName; document.getElementById('channel-pwd-input').value = ""; document.getElementById('password-modal').style.display = 'flex'; } else { ws.send(JSON.stringify({ type: "load_history", channel: chName })); } }
@@ -376,12 +453,11 @@
         function openReport() { document.getElementById('user-action-modal').style.display = 'none'; document.getElementById('report-target-name').innerText = clickedUser; document.getElementById('report-modal').style.display = 'flex'; }
         function sendReport() { const reason = document.getElementById('report-reason').value.trim(); if(!reason) return alert("Neden yazın."); ws.send(JSON.stringify({ type: "report_user", reporter: myUsername, reported: clickedUser, reason: reason })); document.getElementById('report-modal').style.display = 'none'; document.getElementById('report-reason').value = ""; }
         
-        // isMentioned değişkeni eklendi
         function addMessageToScreen(username, time, text, media_data, media_type, dName, pPic, isMentioned = false) {
             let mediaHTML = ""; if (media_data) { if (media_type === "image") mediaHTML = `<img src="${media_data}" class="media-preview">`; else if (media_type === "audio") mediaHTML = `<audio controls src="${media_data}" class="audio-preview"></audio>`; }
             const finalName = dName || username; const avatarHTML = pPic ? `<img src="${pPic}">` : finalName.charAt(0).toUpperCase();
             const div = document.createElement('div'); 
-            div.className = `message ${isMentioned ? 'mentioned' : ''}`; // Etiketlendiyse sarı parlatma sınıfı eklenir
+            div.className = `message ${isMentioned ? 'mentioned' : ''}`;
             div.innerHTML = `<div class="message-avatar" onclick="showUserAction('${username}', '${pPic||''}')">${avatarHTML}</div><div class="message-content"><div class="message-header" onclick="showUserAction('${username}', '${pPic||''}')"><span class="username">${finalName}</span><span class="time">Bugün ${time}</span></div>${text ? `<div class="text">${text}</div>` : ''}${mediaHTML}</div>`;
             document.getElementById('chat-messages').appendChild(div); div.scrollIntoView();
         }
