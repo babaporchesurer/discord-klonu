@@ -6,18 +6,25 @@
     <title>Discord Klonu</title>
     <link rel="apple-touch-icon" href="https://i.ibb.co/senin-logon.png">
     <link rel="icon" type="image/png" href="https://i.ibb.co/senin-logon.png">
-    
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#2f3136">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        body { display: flex; height: 100dvh; background-color: #36393f; color: #dcddde; overflow: hidden; }
+        body { display: flex; height: 100dvh; background-color: #36393f; color: #dcddde; overflow: hidden; flex-direction: row;}
         
-        .sidebar { width: 250px; background-color: #2f3136; padding: 20px 10px; display: flex; flex-direction: column; z-index: 10; }
+        /* YENİ: EN SOLDAKİ SUNUCU ÇUBUĞU */
+        .server-bar { width: 75px; background-color: #202225; display: flex; flex-direction: column; align-items: center; padding-top: 15px; z-index: 30; flex-shrink: 0; gap: 10px; overflow-y: auto;}
+        .server-icon { width: 50px; height: 50px; border-radius: 50%; background-color: #36393f; cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; color: white; overflow: hidden; flex-shrink: 0; position: relative;}
+        .server-icon:hover, .server-icon.active { border-radius: 15px; background-color: #5865F2; }
+        .server-icon img { width: 100%; height: 100%; object-fit: cover; }
+        .add-server-btn { background-color: #36393f; color: #43b581; font-weight: 300; font-size: 30px; }
+        .add-server-btn:hover { background-color: #43b581; color: white; }
+
+        .sidebar { width: 250px; background-color: #2f3136; padding: 20px 10px; display: flex; flex-direction: column; z-index: 10; flex-shrink: 0;}
         .sidebar h2 { font-size: 14px; color: #8e9297; margin-bottom: 15px; text-transform: uppercase; padding-left: 10px; margin-top: 10px;}
-        #channel-list, #dm-list { overflow-y: auto; margin-bottom: 5px; max-height: 150px;}
+        #channel-list, #dm-list { overflow-y: auto; margin-bottom: 5px; max-height: 250px;}
         .channel { padding: 10px; margin-bottom: 5px; border-radius: 5px; cursor: pointer; color: #8e9297; font-weight: 500; display: flex; justify-content: space-between; align-items: center;}
         .channel:hover, .channel.active { background-color: #393c43; color: #fff; }
         .locked-icon { color: #ed4245; font-size: 12px; margin-left: 5px; }
@@ -27,45 +34,35 @@
         .voice-channel { background-color: #292b2f; padding: 10px; border-radius: 5px; cursor: pointer; color: #43b581; font-weight: bold; text-align: center; border: 1px solid #43b581; transition: 0.2s;}
         .voice-channel:hover { background-color: #43b581; color: white; }
         .voice-channel.connected { background-color: #ed4245; color: white; border-color: #ed4245;}
-        
         .voice-user { display: flex; align-items: center; padding: 6px 10px; margin-top: 5px; color: #dcddde; font-size: 14px; font-weight: 500; background-color: #292b2f; border-radius: 4px;}
         .voice-user-avatar { width: 24px; height: 24px; border-radius: 50%; background-color: #5865F2; margin-right: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: 12px; color: white; flex-shrink: 0;}
         .voice-user-avatar img { width: 100%; height: 100%; object-fit: cover; }
         
         #admin-panel-btn, #profile-btn, #notify-btn { margin-top: 5px; padding: 12px; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;}
-        #admin-panel-btn { display: none; background-color: #ed4245; } 
-        #profile-btn { background-color: #5865F2; }
-        #notify-btn { background-color: #4f545c; transition: 0.2s; }
-        #notify-btn:hover { background-color: #72767d; }
+        #admin-panel-btn { display: none; background-color: #ed4245; } #profile-btn { background-color: #5865F2; } #notify-btn { background-color: #4f545c; transition: 0.2s; }
         
         .chat-area { flex: 1; display: flex; flex-direction: column; position: relative; border-right: 1px solid #202225; height: 100%; overflow: hidden; min-width: 0;}
         .messages { flex: 1; padding: 20px; overflow-y: auto; }
-        
         .message { display: flex; flex-direction: row; margin-bottom: 20px; padding: 5px; border-radius: 4px; transition: 0.3s;}
         .message.mentioned { background-color: rgba(250, 166, 26, 0.1); border-left: 3px solid #faa61a; padding-left: 10px; }
         .mention-text { color: #faa61a; font-weight: bold; background: rgba(250, 166, 26, 0.2); padding: 0 4px; border-radius: 3px; }
-
         .message-avatar { width: 40px; height: 40px; border-radius: 50%; background-color: #5865F2; margin-right: 15px; display: flex; align-items: center; justify-content: center; overflow: hidden; font-weight: bold; color: white; cursor: pointer; transition: 0.2s; flex-shrink:0;}
-        .message-avatar:hover { opacity: 0.8; transform: scale(1.05); }
         .message-avatar img { width: 100%; height: 100%; object-fit: cover; }
         .message-content { flex: 1; min-width: 0; }
         .message-header { display: flex; align-items: baseline; margin-bottom: 5px; cursor: pointer; flex-wrap: wrap;}
         .message-header .username { font-weight: bold; color: #fff; font-size: 16px; margin-right: 8px; }
         .message .text { color: #dcddde; line-height: 1.5; margin-bottom: 5px; word-wrap: break-word;}
         .media-preview { max-width: 100%; max-height: 300px; border-radius: 8px; margin-top: 5px; border: 1px solid #202225;}
-        .audio-preview { height: 40px; margin-top: 5px; outline: none; width: 100%; max-width: 300px;}
         
         .input-area { padding: 0 20px 20px 20px; background-color: #36393f; position: relative; flex-shrink: 0;}
         .input-box { display: flex; background-color: #40444b; border-radius: 8px; padding: 10px 15px; align-items: center;}
         .input-box input { flex: 1; background: transparent; border: none; color: #dcddde; outline: none; font-size:15px; min-width: 50px;}
         .input-box button { background-color: #5865F2; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: 5px;}
-        
         .attach-btn { background-color: #4f545c !important; border-radius: 50% !important; padding: 8px 13px !important; margin-right: 10px; font-size: 18px; cursor:pointer; color:white; border:none;}
         .attach-menu { display: none; position: absolute; bottom: 70px; left: 20px; background: #2f3136; border-radius: 8px; padding: 10px; width: 200px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 50;}
         .attach-menu button { display: block; width: 100%; background: none; border: none; color: white; text-align: left; padding: 12px; cursor: pointer; border-radius: 4px; margin-bottom: 2px;}
-        .attach-menu button:hover { background: #393c43; }
 
-        .right-sidebar { width: 200px; background-color: #2f3136; padding: 20px 10px; display: flex; flex-direction: column; z-index: 10;}
+        .right-sidebar { width: 200px; background-color: #2f3136; padding: 20px 10px; display: flex; flex-direction: column; z-index: 10; flex-shrink: 0;}
         .right-sidebar h2 { font-size: 14px; color: #8e9297; margin-bottom: 15px; text-transform: uppercase; padding-left: 10px; }
         .online-user { display: flex; align-items: center; padding: 8px; color: #8e9297; font-weight: 500; cursor: pointer; transition: 0.2s;}
         .online-user:hover { background-color: #393c43; border-radius: 4px;}
@@ -73,7 +70,7 @@
 
         .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 2000; }
         .modal-box { background-color: #36393f; padding: 30px; border-radius: 8px; width: 90%; max-width: 400px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5);}
-        .modal-box input, .modal-box textarea { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 4px; border: none; background: #202225; color: white; outline: none; }
+        .modal-box input { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 4px; border: none; background: #202225; color: white; outline: none; }
         .modal-box button { padding: 10px; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-bottom: 5px; width: 100%;}
         .btn-green { background-color: #43b581; } .btn-red { background-color: #ed4245; } .btn-blue { background-color: #5865F2; } .btn-gray { background-color: #72767d; }
         .profile-pic-preview { width: 100px; height: 100px; border-radius: 50%; background-color: #202225; margin: 0 auto 15px auto; display: flex; justify-content: center; align-items: center; overflow: hidden; font-size: 40px; color: white;}
@@ -82,23 +79,19 @@
         .mobile-btn { background: none; border: none; color: #dcddde; font-size: 24px; cursor: pointer; display: flex; align-items: center;}
         .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 900; }
         .sidebar-overlay.active { display: block; }
-        
-        /* Robot Doğrulama Kutu Tasarımı */
         .captcha-box { background-color: #202225; padding: 15px; border-radius: 5px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; border: 1px solid #4f545c;}
         .captcha-box span { font-weight: bold; color: #43b581; font-size: 18px;}
         .captcha-box input { width: 80px; margin-bottom: 0; text-align: center; font-size: 16px; font-weight: bold;}
         
         @media (max-width: 768px) {
             .mobile-header { display: flex; }
+            .server-bar { width: 60px; padding-top: 10px;}
+            .server-icon { width: 45px; height: 45px; font-size: 16px;}
             .sidebar { position: fixed; top: 0; left: -280px; height: 100%; width: 280px; transition: left 0.3s ease; box-shadow: 2px 0 10px rgba(0,0,0,0.5); z-index: 1000; }
-            .sidebar.open { left: 0; }
+            .sidebar.open { left: 60px; /* Sunucu çubuğunun yanından açılır */ }
             .right-sidebar { position: fixed; top: 0; right: -250px; height: 100%; width: 250px; transition: right 0.3s ease; box-shadow: -2px 0 10px rgba(0,0,0,0.5); z-index: 1000; }
             .right-sidebar.open { right: 0; }
-            .input-area { padding: 0 10px 10px 10px; flex-shrink: 0; }
-            .messages { padding: 15px 10px; }
-            .message-avatar { width: 35px; height: 35px; margin-right: 10px; font-size: 14px;}
-            .message-header .username { font-size: 15px; }
-            .attach-menu { bottom: 60px; left: 10px; }
+            .input-area { padding: 0 10px 10px 10px; } .messages { padding: 15px 10px; }
         }
     </style>
 </head>
@@ -106,53 +99,27 @@
 
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
-    <div id="login-screen" class="overlay">
-        <div class="modal-box" style="text-align: center;">
-            <h2 style="color: white; margin-bottom: 20px;">Sisteme Giriş</h2>
-            <input type="text" id="login-username" placeholder="Kullanıcı Adı">
-            <input type="password" id="login-password" placeholder="Şifre">
-            <div style="text-align: left; margin-bottom: 20px;">
-                <input type="checkbox" id="remember-me" style="margin-right: 5px;">
-                <label for="remember-me" style="color: #8e9297; font-size: 14px;">Beni Hatırla</label>
-            </div>
-            <button id="login-btn" class="btn-blue">Giriş Yap</button>
-            <button id="show-register-btn" class="btn-gray" style="margin-top: 10px;">Hesabın Yok Mu? Kayıt Ol</button>
-            <p id="login-error" style="color: #ed4245; display: none; margin-top: 10px;"></p>
-        </div>
-    </div>
-
-    <div id="register-screen" class="overlay" style="display: none;">
-        <div class="modal-box" style="text-align: center;">
-            <h2 style="color: white; margin-bottom: 20px;">Yeni Hesap Oluştur</h2>
-            <input type="text" id="reg-username" placeholder="Kullanıcı Adı Belirle">
-            <input type="password" id="reg-password" placeholder="Şifre Belirle">
-            
-            <div class="captcha-box">
-                <span id="captcha-question">5 + 3 = ?</span>
-                <input type="number" id="captcha-answer" placeholder="Cevap">
-            </div>
-            
-            <button id="register-btn" class="btn-green">Kayıt Ol</button>
-            <button id="show-login-btn" class="btn-gray" style="margin-top: 10px;">Geri Dön</button>
-            <p id="register-error" style="color: #ed4245; display: none; margin-top: 10px;"></p>
-        </div>
-    </div>
+    <div id="login-screen" class="overlay"><div class="modal-box" style="text-align: center;"><h2 style="color: white; margin-bottom: 20px;">Sisteme Giriş</h2><input type="text" id="login-username" placeholder="Kullanıcı Adı"><input type="password" id="login-password" placeholder="Şifre"><div style="text-align: left; margin-bottom: 20px;"><input type="checkbox" id="remember-me" style="margin-right: 5px;"><label for="remember-me" style="color: #8e9297; font-size: 14px;">Beni Hatırla</label></div><button id="login-btn" class="btn-blue">Giriş Yap</button><button id="show-register-btn" class="btn-gray" style="margin-top: 10px;">Hesabın Yok Mu? Kayıt Ol</button><p id="login-error" style="color: #ed4245; display: none; margin-top: 10px;"></p></div></div>
+    <div id="register-screen" class="overlay" style="display: none;"><div class="modal-box" style="text-align: center;"><h2 style="color: white; margin-bottom: 20px;">Yeni Hesap Oluştur</h2><input type="text" id="reg-username" placeholder="Kullanıcı Adı Belirle"><input type="password" id="reg-password" placeholder="Şifre Belirle"><div class="captcha-box"><span id="captcha-question">5 + 3 = ?</span><input type="number" id="captcha-answer" placeholder="Cevap"></div><button id="register-btn" class="btn-green">Kayıt Ol</button><button id="show-login-btn" class="btn-gray" style="margin-top: 10px;">Geri Dön</button><p id="register-error" style="color: #ed4245; display: none; margin-top: 10px;"></p></div></div>
+    
+    <div id="add-server-modal" class="overlay" style="display: none;"><div class="modal-box" style="text-align: center;"><h2 style="color: white; margin-bottom: 20px;">Yeni Sunucu Kur</h2><div class="profile-pic-preview" id="server-icon-preview">S</div><input type="file" id="server-icon-upload" accept="image/*" style="display: none;"><button class="btn-blue" onclick="document.getElementById('server-icon-upload').click()">📷 Sunucu Simgesi Yükle</button><input type="text" id="new-server-name" placeholder="Sunucu Adı (Örn: Valorant Tayfa)" style="margin-top: 15px;"><button class="btn-green" id="create-server-btn">Sunucuyu Kur</button><button class="btn-gray" onclick="document.getElementById('add-server-modal').style.display='none'">İptal</button></div></div>
 
     <div id="profile-modal" class="overlay" style="display: none;"><div class="modal-box" style="text-align: center;"><h2 style="color: white;">Profilim</h2><div class="profile-pic-preview" id="edit-pic-preview">?</div><input type="file" id="edit-pic-upload" accept="image/*" style="display: none;"><button class="btn-blue" onclick="document.getElementById('edit-pic-upload').click()">📷 Fotoğraf Yükle</button><input type="text" id="edit-display-name" placeholder="Görünen Ad (Örn: KralOyuncu)" style="margin-top: 15px;"><button class="btn-green" id="save-profile-btn">Kaydet</button><button class="btn-gray" onclick="document.getElementById('profile-modal').style.display='none'">İptal</button></div></div>
-    
-    <div id="admin-modal" class="overlay" style="display: none;"><div class="modal-box"><h2 style="color: white; text-align: center; margin-bottom:15px;">🛡️ Sistem Yönetimi</h2><button class="btn-blue" onclick="fetchReports()">📩 Şikayetleri Oku</button><div id="admin-reports-area" style="background:#202225; padding:10px; border-radius:4px; margin-bottom:15px; display:none; max-height:150px; overflow-y:auto; color:white; font-size:13px;"></div><h3 style="color: white; border-top:1px solid #4f545c; padding-top:10px; margin-top:15px;">🔨 Kullanıcı Yönetimi</h3><input type="text" id="admin-manage-user" placeholder="Kullanıcı Adı (Ban/Unban/Sil)"><div style="display: flex; gap: 5px; margin-bottom: 15px;"><button class="btn-red" onclick="admManageUser('ban')">Banla</button><button class="btn-green" onclick="admManageUser('unban')">Ban Kaldır</button><button class="btn-red" onclick="admManageUser('delete')">Sil</button></div><h3 style="color: white; border-top:1px solid #4f545c; padding-top:10px;">📁 Yeni Kanal Aç</h3><input type="text" id="admin-new-chan" placeholder="Kanal Adı (Boşluksuz)"><button class="btn-green" onclick="admCreateChan()">Kanalı Oluştur</button><button class="btn-gray" style="margin-top:20px;" onclick="document.getElementById('admin-modal').style.display='none'">Kapat</button></div></div>
-    
+    <div id="admin-modal" class="overlay" style="display: none;"><div class="modal-box"><h2 style="color: white; text-align: center; margin-bottom:15px;">🛡️ Sistem Yönetimi</h2><button class="btn-blue" onclick="fetchReports()">📩 Şikayetleri Oku</button><div id="admin-reports-area" style="background:#202225; padding:10px; border-radius:4px; margin-bottom:15px; display:none; max-height:150px; overflow-y:auto; color:white; font-size:13px;"></div><h3 style="color: white; border-top:1px solid #4f545c; padding-top:10px; margin-top:15px;">🔨 Kullanıcı Yönetimi</h3><input type="text" id="admin-manage-user" placeholder="Kullanıcı Adı (Ban/Unban/Sil)"><div style="display: flex; gap: 5px; margin-bottom: 15px;"><button class="btn-red" onclick="admManageUser('ban')">Banla</button><button class="btn-green" onclick="admManageUser('unban')">Ban Kaldır</button><button class="btn-red" onclick="admManageUser('delete')">Sil</button></div><h3 style="color: white; border-top:1px solid #4f545c; padding-top:10px;">📁 Yeni Kanal Aç (Bu Sunucuya)</h3><input type="text" id="admin-new-chan" placeholder="Kanal Adı"><button class="btn-green" onclick="admCreateChan()">Kanalı Oluştur</button> <button class="btn-red admin-only-btn" style="margin-top: 15px;" onclick="admDeleteServer()">🗑️ BU SUNUCUYU KOMPLE SİL</button> <button class="btn-gray" style="margin-top:20px;" onclick="document.getElementById('admin-modal').style.display='none'">Kapat</button></div></div>
     <div id="channel-settings-modal" class="overlay" style="display: none;"><div class="modal-box"><h3 style="color: white; margin-bottom:15px;">Kanal Ayarları: <span id="cs-channel-name" style="color:#5865F2;"></span></h3><input type="text" id="cs-new-name" placeholder="Kanalın Yeni Adını Yaz"><button class="btn-blue" onclick="execChanSettings('rename')">Yeniden Adlandır</button><div style="border-top: 1px solid #4f545c; margin: 15px 0; padding-top: 15px;"><input type="text" id="cs-password" placeholder="Şifre Belirle (Kilitlemek İçin)"><div style="display: flex; gap:5px;"><button class="btn-red" style="flex:1;" onclick="execChanSettings('lock')">🔒 Şifrele</button><button class="btn-green" style="flex:1;" onclick="execChanSettings('unlock')">🔓 Kilidi Aç</button></div></div><div style="border-top: 1px solid #4f545c; margin: 15px 0; padding-top: 15px;"><button class="btn-red" onclick="execChanSettings('delete')">🗑️ Kanalı Tamamen Sil</button></div><button class="btn-gray" onclick="document.getElementById('channel-settings-modal').style.display='none'">İptal</button></div></div>
     <div id="user-action-modal" class="overlay" style="display: none;"><div class="modal-box" style="text-align: center; width: 300px;"><div id="action-avatar" style="width:80px; height:80px; border-radius:50%; background:#5865F2; margin:0 auto 15px auto; display:flex; align-items:center; justify-content:center; font-size:30px; color:white; overflow:hidden;"></div><h2 id="action-username" style="color: white; margin-bottom: 20px;">Kullanıcı</h2><button class="btn-blue" onclick="startDM()">💬 Özel Mesaj (DM)</button><button class="btn-gray" onclick="openReport()">⚠️ Şikayet Et</button><button class="btn-red admin-only-btn" style="display:none; margin-top:15px;" onclick="execUserAdmin('ban')">🔨 Bu Kullanıcıyı Banla</button><button class="btn-green admin-only-btn" style="display:none;" onclick="execUserAdmin('unban')">✅ Banını Kaldır</button><button class="btn-red admin-only-btn" style="display:none;" onclick="execUserAdmin('delete')">🗑️ Hesabı Tamamen Sil</button><button class="btn-gray" style="margin-top:15px;" onclick="document.getElementById('user-action-modal').style.display='none'">İptal</button></div></div>
-    <div id="report-modal" class="overlay" style="display: none;"><div class="modal-box"><h3 style="color: white; margin-bottom:15px;">Şikayet: <span id="report-target-name"></span></h3><textarea id="report-reason" rows="4" placeholder="Neden?"></textarea><button class="btn-red" onclick="sendReport()">İlet</button><button class="btn-gray" onclick="document.getElementById('report-modal').style.display='none'">Vazgeç</button></div></div>
     <div id="password-modal" class="overlay" style="display: none;"><div class="modal-box" style="text-align: center;"><h3 style="color:white; margin-bottom:15px;">Şifreli 🔒</h3><input type="password" id="channel-pwd-input" placeholder="Şifre"><button class="btn-blue" id="submit-chan-pwd">Giriş</button><button class="btn-gray" onclick="document.getElementById('password-modal').style.display='none'">İptal</button></div></div>
-    <div id="camera-modal" class="overlay" style="display: none;"><div class="modal-box"><video id="camera-video" autoplay style="width: 100%; border-radius: 8px; transform: scaleX(-1);"></video><button id="capture-btn" class="btn-green" style="margin-top: 15px;">📸 Gönder</button><button id="close-camera-btn" class="btn-red">İptal</button><canvas id="camera-canvas" style="display: none;"></canvas></div></div>
+
+    <div class="server-bar" id="server-bar">
+        <div id="server-list-container" style="display:flex; flex-direction:column; gap:10px; align-items:center; width:100%;"></div>
+        <div class="server-icon add-server-btn" onclick="document.getElementById('add-server-modal').style.display='flex'">+</div>
+    </div>
 
     <div class="sidebar" id="sidebar">
-        <h2>Metin Kanalları</h2>
+        <h2 id="sidebar-server-name" style="color:white; font-size:16px;">Yükleniyor...</h2>
         <div id="channel-list"></div>
         
-        <h2>Ses Odaları</h2>
+        <h2 style="margin-top: 15px;">Ses Odaları</h2>
         <div class="voice-channel" id="voice-btn">🔊 Genel Ses (Katıl)</div>
         <div id="voice-users-list" style="margin-top: 5px; padding-left: 5px;"></div>
         
@@ -172,15 +139,13 @@
             <span id="mobile-channel-title">Yükleniyor...</span>
             <button class="mobile-btn" id="btn-toggle-users">👥</button>
         </div>
-
         <div class="messages" id="chat-messages"></div>
-        
         <div class="input-area">
-            <div class="attach-menu" id="attach-menu"><button id="btn-gallery">🖼️ Galeri</button><button id="btn-camera">📷 Kamera</button><button id="btn-audio-file">🎵 Ses Dosyası</button><button id="btn-mic">🎤 Mikrofon</button></div>
-            <input type="file" id="file-gallery" accept="image/*" style="display: none;"><input type="file" id="file-audio" accept="audio/*" style="display: none;">
+            <div class="attach-menu" id="attach-menu"><button id="btn-gallery">🖼️ Galeri</button><button id="btn-camera">📷 Kamera</button></div>
+            <input type="file" id="file-gallery" accept="image/*" style="display: none;">
             <div class="input-box">
                 <button class="attach-btn" id="attach-btn">+</button>
-                <input type="text" id="message-input" placeholder="Mesaj... Birini etiketlemek için @KullanıcıAdı yazın">
+                <input type="text" id="message-input" placeholder="Mesaj... (@ Etiketle)">
                 <button id="send-button">Gönder</button>
             </div>
         </div>
@@ -204,43 +169,23 @@
         overlay.addEventListener('click', () => { sidebar.classList.remove('open'); rightSidebar.classList.remove('open'); overlay.classList.remove('active'); });
 
         document.getElementById('notify-btn').addEventListener('click', () => {
-            if ("Notification" in window) {
-                Notification.requestPermission().then(permission => {
-                    if (permission === "granted") {
-                        alert("Harika! Artık mesajlar sana bildirim olarak gelecek.");
-                        document.getElementById('notify-btn').style.display = "none";
-                    } else alert("Bildirim izni verilmedi.");
-                });
-            } else alert("Tarayıcınız bildirimleri desteklemiyor.");
+            if ("Notification" in window) Notification.requestPermission().then(p => { if (p === "granted") document.getElementById('notify-btn').style.display = "none"; });
         });
-        
         if ("Notification" in window && Notification.permission === "granted") document.getElementById('notify-btn').style.display = "none";
 
-        // --- YENİ: CAPTCHA VE KAYIT MANTIĞI ---
         let currentCaptchaAns = 0;
-        function generateCaptcha() {
-            const num1 = Math.floor(Math.random() * 15) + 1;
-            const num2 = Math.floor(Math.random() * 10) + 1;
-            currentCaptchaAns = num1 + num2;
-            document.getElementById('captcha-question').innerText = `Doğrulama: ${num1} + ${num2} = ?`;
-            document.getElementById('captcha-answer').value = '';
-        }
+        function generateCaptcha() { const n1 = Math.floor(Math.random()*15)+1; const n2 = Math.floor(Math.random()*10)+1; currentCaptchaAns = n1+n2; document.getElementById('captcha-question').innerText = `Doğrulama: ${n1} + ${n2} = ?`; document.getElementById('captcha-answer').value = ''; }
+        document.getElementById('show-register-btn').addEventListener('click', () => { document.getElementById('login-screen').style.display = 'none'; generateCaptcha(); document.getElementById('register-screen').style.display = 'flex'; });
+        document.getElementById('show-login-btn').addEventListener('click', () => { document.getElementById('register-screen').style.display = 'none'; document.getElementById('login-screen').style.display = 'flex'; });
 
-        document.getElementById('show-register-btn').addEventListener('click', () => {
-            document.getElementById('login-screen').style.display = 'none';
-            generateCaptcha();
-            document.getElementById('register-screen').style.display = 'flex';
-        });
-
-        document.getElementById('show-login-btn').addEventListener('click', () => {
-            document.getElementById('register-screen').style.display = 'none';
-            document.getElementById('login-screen').style.display = 'flex';
-        });
+        let tempServerIcon = "";
+        document.getElementById('server-icon-upload').addEventListener('change', function() { const file = this.files[0]; if (file) { const reader = new FileReader(); reader.onload = e => { tempServerIcon = e.target.result; document.getElementById('server-icon-preview').innerHTML = `<img src="${tempServerIcon}">`; }; reader.readAsDataURL(file); } });
+        document.getElementById('create-server-btn').addEventListener('click', () => { const name = document.getElementById('new-server-name').value.trim(); if(name) { ws.send(JSON.stringify({ type: "create_server", server_name: name, server_icon: tempServerIcon })); document.getElementById('add-server-modal').style.display = 'none'; } });
 
         const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
         const ws = new WebSocket(protocol + window.location.host + "/ws");
 
-        let myUsername = "", activeChannel = "", myRole = "user", myDisplayName = "", myProfilePic = ""; 
+        let myUsername = "", activeChannel = "", activeServer = "", myRole = "user", myDisplayName = "", myProfilePic = ""; 
         let clickedUser = "", pendingChannel = "", targetChanSettings = ""; 
 
         window.onload = function() {
@@ -251,27 +196,8 @@
             }
         };
 
-        document.getElementById('login-btn').addEventListener('click', function() {
-            ws.send(JSON.stringify({ type: "login", username: document.getElementById('login-username').value.trim(), password: document.getElementById('login-password').value.trim() }));
-        });
-
-        document.getElementById('register-btn').addEventListener('click', function() {
-            const u = document.getElementById('reg-username').value.trim();
-            const p = document.getElementById('reg-password').value.trim();
-            const ans = parseInt(document.getElementById('captcha-answer').value.trim());
-            const errBox = document.getElementById('register-error');
-
-            if(!u || !p) { errBox.innerText = "Lütfen tüm alanları doldurun!"; errBox.style.display = "block"; return; }
-            if(ans !== currentCaptchaAns) { 
-                errBox.innerText = "Robot doğrulaması yanlış! Lütfen işlemi tekrar çözün."; 
-                errBox.style.display = "block"; 
-                generateCaptcha(); 
-                return; 
-            }
-            
-            errBox.style.display = "none";
-            ws.send(JSON.stringify({ type: "register", username: u, password: p }));
-        });
+        document.getElementById('login-btn').addEventListener('click', function() { ws.send(JSON.stringify({ type: "login", username: document.getElementById('login-username').value.trim(), password: document.getElementById('login-password').value.trim() })); });
+        document.getElementById('register-btn').addEventListener('click', function() { const u = document.getElementById('reg-username').value.trim(); const p = document.getElementById('reg-password').value.trim(); const ans = parseInt(document.getElementById('captcha-answer').value.trim()); const errBox = document.getElementById('register-error'); if(!u || !p) return; if(ans !== currentCaptchaAns) { errBox.innerText = "Robot doğrulaması yanlış!"; errBox.style.display = "block"; generateCaptcha(); return; } errBox.style.display = "none"; ws.send(JSON.stringify({ type: "register", username: u, password: p })); });
 
         let inVoice = false; let localStream = null; let peerConnections = {}; 
         const rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] }; 
@@ -279,28 +205,74 @@
         ws.onmessage = async function(event) {
             const data = JSON.parse(event.data);
             
-            // YENİ: KAYIT CEVABI DİNLEYİCİSİ
-            if (data.type === "register_response") {
-                if(data.success) {
-                    alert("Hesap başarıyla oluşturuldu! Şimdi giriş yapabilirsiniz.");
-                    document.getElementById('register-screen').style.display = 'none';
-                    document.getElementById('login-screen').style.display = 'flex';
-                    document.getElementById('login-username').value = document.getElementById('reg-username').value;
-                    document.getElementById('login-password').value = "";
-                } else {
-                    document.getElementById('register-error').innerText = data.error_msg;
-                    document.getElementById('register-error').style.display = 'block';
-                    generateCaptcha();
+            if (data.type === "register_response") { if(data.success) { alert("Hesap açıldı!"); document.getElementById('register-screen').style.display = 'none'; document.getElementById('login-screen').style.display = 'flex'; } else { document.getElementById('register-error').innerText = data.error_msg; document.getElementById('register-error').style.display = 'block'; generateCaptcha(); } }
+            
+            # YENİ: SUNUCU LİSTESİ RENDER
+            else if (data.type === "server_list") {
+                const sContainer = document.getElementById('server-list-container'); sContainer.innerHTML = "";
+                if(activeServer === "" && data.servers.length > 0) activeServer = data.servers[0].name;
+                
+                data.servers.forEach(srv => {
+                    let iconHtml = srv.icon ? `<img src="${srv.icon}">` : srv.name.charAt(0).toUpperCase();
+                    let isActive = (srv.name === activeServer) ? 'active' : '';
+                    sContainer.innerHTML += `<div class="server-icon ${isActive}" onclick="switchServer('${srv.name}')" title="${srv.name}">${iconHtml}</div>`;
+                });
+                
+                if (activeServer) {
+                    document.getElementById('sidebar-server-name').innerText = activeServer;
+                    ws.send(JSON.stringify({ type: "load_server", server_name: activeServer }));
                 }
             }
             
+            else if (data.type === "channel_list") {
+                if(data.server_name === activeServer) {
+                    document.getElementById('channel-list').innerHTML = "";
+                    activeChannel = data.channels.length > 0 ? data.channels[0].name : "";
+                    data.channels.forEach(ch => {
+                        let gearHtml = (myRole === "admin") ? `<span class="channel-gear" onclick="openChanSettings(event, '${ch.name}')">⚙️</span>` : '';
+                        let lockHtml = ch.is_locked ? '<span class="locked-icon">🔒</span>' : '';
+                        document.getElementById('channel-list').innerHTML += `<div class="channel ${activeChannel===ch.name ? 'active':''}" onclick="selectChannel('${ch.name}', ${ch.is_locked})"><span style="display:flex; align-items:center;"># ${ch.name} ${lockHtml}</span>${gearHtml}</div>`;
+                    });
+                    if (activeChannel) ws.send(JSON.stringify({ type: "load_history", channel: activeChannel, server_name: activeServer }));
+                }
+            }
+
+            else if (data.type === "history") {
+                if(data.server_name === activeServer) {
+                    activeChannel = data.channel; document.getElementById('chat-messages').innerHTML = "";
+                    const chTitleText = `${activeChannel.startsWith('@') ? 'DM: ' : '#'}${activeChannel}`;
+                    document.getElementById('message-input').placeholder = `${chTitleText} mesaj...`; mobTitle.innerText = chTitleText;
+                    document.querySelectorAll('.channel').forEach(c => { c.classList.remove('active'); if(c.innerText.includes(activeChannel)) c.classList.add('active'); });
+                    document.getElementById('password-modal').style.display = 'none';
+                    data.messages.forEach(msg => { let isMentioned = msg.text && msg.text.includes(`@${myUsername}`); let text = msg.text; if(isMentioned) text = text.replace(new RegExp(`@${myUsername}`, 'g'), `<span class="mention-text">@${myUsername}</span>`); addMessageToScreen(msg.username, msg.time, text, msg.media_data, msg.media_type, msg.display_name, msg.profile_pic, isMentioned); });
+                }
+            } 
+            
+            else if (data.type === "message") {
+                let isMentioned = data.text && data.text.includes(`@${myUsername}`);
+                let text = data.text;
+                if(isMentioned) text = text.replace(new RegExp(`@${myUsername}`, 'g'), `<span class="mention-text">@${myUsername}</span>`);
+
+                if (data.server_name === activeServer) {
+                    if (data.channel === activeChannel || (activeChannel.startsWith('@') && data.channel === `@${myUsername}` && data.username === activeChannel.substring(1))) {
+                        addMessageToScreen(data.username, data.time, text, data.media_data, data.media_type, data.display_name, data.profile_pic, isMentioned);
+                    }
+                }
+                
+                if (data.username !== myUsername && (isMentioned || document.hidden) && "Notification" in window && Notification.permission === "granted") {
+                    new Notification(isMentioned ? `🔔 Senden bahsedildi!` : `Yeni Mesaj: ${data.channel}`, { body: `${data.display_name || data.username}: ${data.text || 'Medya'}`, icon: data.profile_pic || null });
+                }
+            }
+
             else if (data.type === "user_joined_voice") { if(inVoice) createOffer(data.username); }
             else if (data.type === "voice_list") {
                 const vList = document.getElementById('voice-users-list'); vList.innerHTML = "";
                 data.users.forEach(u => {
-                    const finalName = u.display_name || u.username;
-                    const avatarHTML = u.profile_pic ? `<img src="${u.profile_pic}">` : finalName.charAt(0).toUpperCase();
-                    vList.innerHTML += `<div class="voice-user" onclick="showUserAction('${u.username}', '${u.profile_pic||''}')" style="cursor:pointer;"><div class="voice-user-avatar">${avatarHTML}</div>${finalName}</div>`;
+                    if(u.server_name === activeServer) {
+                        const finalName = u.display_name || u.username;
+                        const avatarHTML = u.profile_pic ? `<img src="${u.profile_pic}">` : finalName.charAt(0).toUpperCase();
+                        vList.innerHTML += `<div class="voice-user" onclick="showUserAction('${u.username}', '${u.profile_pic||''}')" style="cursor:pointer;"><div class="voice-user-avatar">${avatarHTML}</div>${finalName}</div>`;
+                    }
                 });
             }
             else if (data.type === "webrtc_offer") { if(inVoice) await handleOffer(data.username, data.offer); }
@@ -312,142 +284,45 @@
                     myUsername = document.getElementById('login-username').value.trim();
                     myRole = data.role; myDisplayName = data.display_name; myProfilePic = data.profile_pic;
                     document.getElementById('login-screen').style.display = 'none';
-                    if (document.getElementById('remember-me').checked) {
-                        localStorage.setItem("discord_user", myUsername); localStorage.setItem("discord_pass", document.getElementById('login-password').value.trim());
-                    }
+                    if (document.getElementById('remember-me').checked) { localStorage.setItem("discord_user", myUsername); localStorage.setItem("discord_pass", document.getElementById('login-password').value.trim()); }
                     if(myRole === "admin") document.getElementById('admin-panel-btn').style.display = 'block';
                 } else { document.getElementById('login-error').innerText = data.error_msg; document.getElementById('login-error').style.display = 'block'; }
             }
-            else if (data.type === "online_list") {
-                document.getElementById('online-count').innerText = data.users.length;
-                document.getElementById('online-list').innerHTML = "";
-                data.users.forEach(u => document.getElementById('online-list').innerHTML += `<div class="online-user" onclick="showUserAction('${u}', '')"><div class="online-dot"></div> ${u}</div>`);
-            }
-            else if (data.type === "channel_list") {
-                document.getElementById('channel-list').innerHTML = "";
-                data.channels.forEach((ch, index) => {
-                    if(activeChannel === "" && index === 0) activeChannel = ch.name;
-                    let gearHtml = (myRole === "admin") ? `<span class="channel-gear" onclick="openChanSettings(event, '${ch.name}')">⚙️</span>` : '';
-                    let lockHtml = ch.is_locked ? '<span class="locked-icon">🔒</span>' : '';
-                    document.getElementById('channel-list').innerHTML += `<div class="channel ${activeChannel===ch.name ? 'active':''}" onclick="selectChannel('${ch.name}', ${ch.is_locked})"><span style="display:flex; align-items:center;"># ${ch.name} ${lockHtml}</span>${gearHtml}</div>`;
-                });
-                if (activeChannel) ws.send(JSON.stringify({ type: "load_history", channel: activeChannel }));
-            }
-            else if (data.type === "history") {
-                activeChannel = data.channel; document.getElementById('chat-messages').innerHTML = "";
-                const chTitleText = `${activeChannel.startsWith('@') ? 'DM: ' : '#'}${activeChannel}`;
-                document.getElementById('message-input').placeholder = `${chTitleText} kanalına mesaj... Birini etiketlemek için @KullanıcıAdı yazın`; 
-                mobTitle.innerText = chTitleText;
-                document.querySelectorAll('.channel').forEach(c => { c.classList.remove('active'); if(c.innerText.includes(activeChannel)) c.classList.add('active'); });
-                document.getElementById('password-modal').style.display = 'none';
-                
-                data.messages.forEach(msg => {
-                    let isMentioned = msg.text && msg.text.includes(`@${myUsername}`);
-                    let text = msg.text;
-                    if(isMentioned) text = text.replace(new RegExp(`@${myUsername}`, 'g'), `<span class="mention-text">@${myUsername}</span>`);
-                    addMessageToScreen(msg.username, msg.time, text, msg.media_data, msg.media_type, msg.display_name, msg.profile_pic, isMentioned);
-                });
-            } 
-            else if (data.type === "message") {
-                let isMentioned = data.text && data.text.includes(`@${myUsername}`);
-                let text = data.text;
-                if(isMentioned) text = text.replace(new RegExp(`@${myUsername}`, 'g'), `<span class="mention-text">@${myUsername}</span>`);
-
-                if (data.channel === activeChannel || (activeChannel.startsWith('@') && data.channel === `@${myUsername}` && data.username === activeChannel.substring(1))) {
-                    addMessageToScreen(data.username, data.time, text, data.media_data, data.media_type, data.display_name, data.profile_pic, isMentioned);
-                }
-                
-                if (data.username !== myUsername) {
-                    if (isMentioned || document.hidden) {
-                        if ("Notification" in window && Notification.permission === "granted") {
-                            const finalName = data.display_name || data.username;
-                            const title = isMentioned ? `🔔 Senden bahsedildi!` : `Yeni Mesaj: ${data.channel}`;
-                            new Notification(title, { body: `${finalName}: ${data.text || 'Medya'}`, icon: data.profile_pic || null });
-                        }
-                    }
-                }
-            }
+            else if (data.type === "online_list") { document.getElementById('online-count').innerText = data.users.length; document.getElementById('online-list').innerHTML = ""; data.users.forEach(u => document.getElementById('online-list').innerHTML += `<div class="online-user" onclick="showUserAction('${u}', '')"><div class="online-dot"></div> ${u}</div>`); }
             else if (data.type === "profile_updated") { myDisplayName = data.display_name; myProfilePic = data.profile_pic; alert("Profil güncellendi!"); document.getElementById('profile-modal').style.display = 'none'; }
-            else if (data.type === "report_list") {
-                const area = document.getElementById('admin-reports-area'); area.innerHTML = data.reports.length === 0 ? "Şikayet yok." : "";
-                data.reports.forEach(r => area.innerHTML += `<div style="border-bottom:1px solid #4f545c; padding:5px 0;"><b>Kimden:</b> ${r.reporter} <br><b>Kimi:</b> <span style="color:#ed4245">${r.reported}</span> <br><b>Neden:</b> ${r.reason} <br><i>${r.time}</i></div>`);
-                area.style.display = 'block';
-            }
+            else if (data.type === "report_list") { const area = document.getElementById('admin-reports-area'); area.innerHTML = data.reports.length === 0 ? "Şikayet yok." : ""; data.reports.forEach(r => area.innerHTML += `<div style="border-bottom:1px solid #4f545c; padding:5px 0;"><b>Kimden:</b> ${r.reporter} <br><b>Kimi:</b> <span style="color:#ed4245">${r.reported}</span> <br><b>Neden:</b> ${r.reason} <br><i>${r.time}</i></div>`); area.style.display = 'block'; }
             else if (data.type === "system_msg") alert("SİSTEM: " + data.message);
-            else if (data.type === "system_error") {
-                alert("HATA: " + data.message);
-                if (data.message.includes("BANLANDINIZ")) window.location.reload(); 
-            }
+            else if (data.type === "system_error") { alert("HATA: " + data.message); if (data.message.includes("BANLANDINIZ")) window.location.reload(); }
         };
 
         const voiceBtn = document.getElementById('voice-btn');
         voiceBtn.addEventListener('click', async () => {
-            if (inVoice) {
-                inVoice = false; voiceBtn.innerText = "🔊 Genel Ses (Katıl)"; voiceBtn.classList.remove("connected");
-                if(localStream) localStream.getTracks().forEach(track => track.stop());
-                Object.values(peerConnections).forEach(pc => pc.close()); peerConnections = {};
-                document.getElementById('audio-container').innerHTML = ""; 
-                ws.send(JSON.stringify({ type: "leave_voice", username: myUsername }));
-            } else {
-                try {
-                    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    inVoice = true; voiceBtn.innerText = "🔇 Sesten Çık"; voiceBtn.classList.add("connected");
-                    ws.send(JSON.stringify({ type: "join_voice", username: myUsername, display_name: myDisplayName, profile_pic: myProfilePic }));
-                } catch (err) { alert("Mikrofon izni reddedildi!"); }
-            }
+            if (inVoice) { inVoice = false; voiceBtn.innerText = "🔊 Genel Ses (Katıl)"; voiceBtn.classList.remove("connected"); if(localStream) localStream.getTracks().forEach(track => track.stop()); Object.values(peerConnections).forEach(pc => pc.close()); peerConnections = {}; document.getElementById('audio-container').innerHTML = ""; ws.send(JSON.stringify({ type: "leave_voice", username: myUsername })); } 
+            else { try { localStream = await navigator.mediaDevices.getUserMedia({ audio: true }); inVoice = true; voiceBtn.innerText = "🔇 Sesten Çık"; voiceBtn.classList.add("connected"); ws.send(JSON.stringify({ type: "join_voice", username: myUsername, display_name: myDisplayName, profile_pic: myProfilePic, server_name: activeServer })); } catch (err) { alert("Mikrofon izni reddedildi!"); } }
         });
 
-        async function createOffer(targetUser) {
-            const pc = new RTCPeerConnection(rtcConfig); peerConnections[targetUser] = pc;
-            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-            pc.onicecandidate = e => { if(e.candidate) ws.send(JSON.stringify({ type: "webrtc_ice", target: targetUser, candidate: e.candidate, username: myUsername })); };
-            pc.ontrack = e => playRemoteAudio(targetUser, e.streams[0]);
-            const offer = await pc.createOffer(); await pc.setLocalDescription(offer);
-            ws.send(JSON.stringify({ type: "webrtc_offer", target: targetUser, offer: offer, username: myUsername }));
+        async function createOffer(targetUser) { const pc = new RTCPeerConnection(rtcConfig); peerConnections[targetUser] = pc; localStream.getTracks().forEach(track => pc.addTrack(track, localStream)); pc.onicecandidate = e => { if(e.candidate) ws.send(JSON.stringify({ type: "webrtc_ice", target: targetUser, candidate: e.candidate, username: myUsername })); }; pc.ontrack = e => playRemoteAudio(targetUser, e.streams[0]); const offer = await pc.createOffer(); await pc.setLocalDescription(offer); ws.send(JSON.stringify({ type: "webrtc_offer", target: targetUser, offer: offer, username: myUsername })); }
+        async function handleOffer(targetUser, offer) { const pc = new RTCPeerConnection(rtcConfig); peerConnections[targetUser] = pc; localStream.getTracks().forEach(track => pc.addTrack(track, localStream)); pc.onicecandidate = e => { if(e.candidate) ws.send(JSON.stringify({ type: "webrtc_ice", target: targetUser, candidate: e.candidate, username: myUsername })); }; pc.ontrack = e => playRemoteAudio(targetUser, e.streams[0]); await pc.setRemoteDescription(new RTCSessionDescription(offer)); const answer = await pc.createAnswer(); await pc.setLocalDescription(answer); ws.send(JSON.stringify({ type: "webrtc_answer", target: targetUser, answer: answer, username: myUsername })); }
+        function playRemoteAudio(username, stream) { if (!document.getElementById(`audio-${username}`)) { const audioEl = document.createElement("audio"); audioEl.id = `audio-${username}`; audioEl.autoplay = true; audioEl.srcObject = stream; document.getElementById('audio-container').appendChild(audioEl); } }
+
+        function switchServer(name) {
+            activeServer = name;
+            document.querySelectorAll('.server-icon').forEach(icon => { icon.classList.remove('active'); if(icon.title === name) icon.classList.add('active'); });
+            document.getElementById('sidebar-server-name').innerText = activeServer;
+            ws.send(JSON.stringify({ type: "load_server", server_name: activeServer }));
         }
 
-        async function handleOffer(targetUser, offer) {
-            const pc = new RTCPeerConnection(rtcConfig); peerConnections[targetUser] = pc;
-            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-            pc.onicecandidate = e => { if(e.candidate) ws.send(JSON.stringify({ type: "webrtc_ice", target: targetUser, candidate: e.candidate, username: myUsername })); };
-            pc.ontrack = e => playRemoteAudio(targetUser, e.streams[0]);
-            await pc.setRemoteDescription(new RTCSessionDescription(offer));
-            const answer = await pc.createAnswer(); await pc.setLocalDescription(answer);
-            ws.send(JSON.stringify({ type: "webrtc_answer", target: targetUser, answer: answer, username: myUsername }));
-        }
+        function openChanSettings(e, chName) { e.stopPropagation(); targetChanSettings = chName; document.getElementById('cs-channel-name').innerText = chName; document.getElementById('cs-new-name').value = ""; document.getElementById('cs-password').value = ""; document.getElementById('channel-settings-modal').style.display = 'flex'; }
+        function execChanSettings(act) { let val = ""; if(act === 'rename') val = document.getElementById('cs-new-name').value.trim(); if(act === 'lock') val = document.getElementById('cs-password').value.trim(); ws.send(JSON.stringify({ type: "admin_channel_action", action: act, target: targetChanSettings, value: val, server_name: activeServer })); document.getElementById('channel-settings-modal').style.display = 'none'; }
+        function admDeleteServer() { if(confirm("Bu sunucuyu sildiğinizde içindeki KANALLAR VE MESAJLAR tamamen silinir. Emin misiniz?")) { ws.send(JSON.stringify({ type: "admin_server_delete", server_name: activeServer })); document.getElementById('admin-modal').style.display = 'none'; } }
 
-        function playRemoteAudio(username, stream) {
-            if (!document.getElementById(`audio-${username}`)) {
-                const audioEl = document.createElement("audio"); audioEl.id = `audio-${username}`; audioEl.autoplay = true; audioEl.srcObject = stream;
-                document.getElementById('audio-container').appendChild(audioEl);
-            }
-        }
+        function showUserAction(username, picStr) { if(username === myUsername) return; clickedUser = username; document.getElementById('action-username').innerText = username; document.getElementById('action-avatar').innerHTML = picStr ? `<img src="${picStr}" style="width:100%; height:100%; object-fit:cover;">` : username.charAt(0).toUpperCase(); document.querySelectorAll('.admin-only-btn').forEach(btn => btn.style.display = (myRole === 'admin') ? 'block' : 'none'); document.getElementById('user-action-modal').style.display = 'flex'; }
+        function execUserAdmin(act) { ws.send(JSON.stringify({ type: "admin_user_action", action: act, target: clickedUser })); document.getElementById('user-action-modal').style.display = 'none'; }
+        function admManageUser(act) { let u = document.getElementById('admin-manage-user').value.trim(); if(u) { ws.send(JSON.stringify({ type: "admin_user_action", action: act, target: u })); document.getElementById('admin-manage-user').value = ''; } else alert("Kullanıcı adı yaz!"); }
+        function admCreateChan() { let val = document.getElementById('admin-new-chan').value.trim(); if(val) { ws.send(JSON.stringify({ type: "admin_channel_action", action: "create", target: val, server_name: activeServer })); document.getElementById('admin-new-chan').value = ''; } }
 
-        function openChanSettings(e, chName) {
-            e.stopPropagation(); 
-            targetChanSettings = chName; document.getElementById('cs-channel-name').innerText = chName;
-            document.getElementById('cs-new-name').value = ""; document.getElementById('cs-password').value = "";
-            document.getElementById('channel-settings-modal').style.display = 'flex';
-        }
-        function execChanSettings(act) {
-            let val = ""; if(act === 'rename') val = document.getElementById('cs-new-name').value.trim(); if(act === 'lock') val = document.getElementById('cs-password').value.trim();
-            ws.send(JSON.stringify({ type: "admin_channel_action", action: act, target: targetChanSettings, value: val })); document.getElementById('channel-settings-modal').style.display = 'none';
-        }
-
-        function showUserAction(username, picStr) { 
-            if(username === myUsername) return; clickedUser = username; 
-            document.getElementById('action-username').innerText = username; 
-            document.getElementById('action-avatar').innerHTML = picStr ? `<img src="${picStr}" style="width:100%; height:100%; object-fit:cover;">` : username.charAt(0).toUpperCase(); 
-            document.querySelectorAll('.admin-only-btn').forEach(btn => btn.style.display = (myRole === 'admin') ? 'block' : 'none');
-            document.getElementById('user-action-modal').style.display = 'flex'; 
-        }
-
-        function execUserAdmin(act) { ws.send(JSON.stringify({ type: "admin_user_action", action: act, target: clickedUser, value: "" })); document.getElementById('user-action-modal').style.display = 'none'; }
-        function admManageUser(act) { let u = document.getElementById('admin-manage-user').value.trim(); if(u) { ws.send(JSON.stringify({ type: "admin_user_action", action: act, target: u, value: "" })); document.getElementById('admin-manage-user').value = ''; } else alert("Kullanıcı adı yazmalısın!"); }
-        function admCreateChan() { let val = document.getElementById('admin-new-chan').value.trim(); if(val) { ws.send(JSON.stringify({ type: "admin_channel_action", action: "create", target: val, value: "" })); document.getElementById('admin-new-chan').value = ''; } }
-
-        function selectChannel(chName, isLocked) { if(window.innerWidth <= 768) { sidebar.classList.remove('open'); overlay.classList.remove('active'); } if (isLocked && !chName.startsWith('@')) { pendingChannel = chName; document.getElementById('channel-pwd-input').value = ""; document.getElementById('password-modal').style.display = 'flex'; } else { ws.send(JSON.stringify({ type: "load_history", channel: chName })); } }
-        document.getElementById('submit-chan-pwd').addEventListener('click', () => { ws.send(JSON.stringify({ type: "load_history", channel: pendingChannel, password: document.getElementById('channel-pwd-input').value })); });
+        function selectChannel(chName, isLocked) { if(window.innerWidth <= 768) { sidebar.classList.remove('open'); overlay.classList.remove('active'); } if (isLocked && !chName.startsWith('@')) { pendingChannel = chName; document.getElementById('channel-pwd-input').value = ""; document.getElementById('password-modal').style.display = 'flex'; } else { ws.send(JSON.stringify({ type: "load_history", channel: chName, server_name: activeServer })); } }
+        document.getElementById('submit-chan-pwd').addEventListener('click', () => { ws.send(JSON.stringify({ type: "load_history", channel: pendingChannel, password: document.getElementById('channel-pwd-input').value, server_name: activeServer })); });
         
         function startDM() { document.getElementById('user-action-modal').style.display = 'none'; activeChannel = `@${clickedUser}`; const dmList = document.getElementById('dm-list'); if(!dmList.innerHTML.includes(`@${clickedUser}`)) dmList.innerHTML += `<div class="channel active" onclick="selectChannel('@${clickedUser}', false)">💬 ${clickedUser}</div>`; selectChannel(`@${clickedUser}`, false); }
         function openReport() { document.getElementById('user-action-modal').style.display = 'none'; document.getElementById('report-target-name').innerText = clickedUser; document.getElementById('report-modal').style.display = 'flex'; }
@@ -456,12 +331,11 @@
         function addMessageToScreen(username, time, text, media_data, media_type, dName, pPic, isMentioned = false) {
             let mediaHTML = ""; if (media_data) { if (media_type === "image") mediaHTML = `<img src="${media_data}" class="media-preview">`; else if (media_type === "audio") mediaHTML = `<audio controls src="${media_data}" class="audio-preview"></audio>`; }
             const finalName = dName || username; const avatarHTML = pPic ? `<img src="${pPic}">` : finalName.charAt(0).toUpperCase();
-            const div = document.createElement('div'); 
-            div.className = `message ${isMentioned ? 'mentioned' : ''}`;
+            const div = document.createElement('div'); div.className = `message ${isMentioned ? 'mentioned' : ''}`;
             div.innerHTML = `<div class="message-avatar" onclick="showUserAction('${username}', '${pPic||''}')">${avatarHTML}</div><div class="message-content"><div class="message-header" onclick="showUserAction('${username}', '${pPic||''}')"><span class="username">${finalName}</span><span class="time">Bugün ${time}</span></div>${text ? `<div class="text">${text}</div>` : ''}${mediaHTML}</div>`;
             document.getElementById('chat-messages').appendChild(div); div.scrollIntoView();
         }
-        function sendPayload(text, mediaData = null, mediaType = null) { ws.send(JSON.stringify({ type: "message", username: myUsername, text: text, channel: activeChannel, media_data: mediaData, media_type: mediaType, display_name: myDisplayName, profile_pic: myProfilePic })); }
+        function sendPayload(text, mediaData = null, mediaType = null) { ws.send(JSON.stringify({ type: "message", username: myUsername, text: text, channel: activeChannel, server_name: activeServer, media_data: mediaData, media_type: mediaType, display_name: myDisplayName, profile_pic: myProfilePic })); }
         document.getElementById('send-button').addEventListener('click', () => { const text = document.getElementById('message-input').value.trim(); if (text !== '') { sendPayload(text); document.getElementById('message-input').value = ''; } });
         document.getElementById('message-input').addEventListener('keypress', e => { if (e.key === 'Enter') document.getElementById('send-button').click(); });
         
@@ -471,12 +345,9 @@
         
         document.getElementById('admin-panel-btn').addEventListener('click', () => document.getElementById('admin-modal').style.display = 'flex');
         function fetchReports() { ws.send(JSON.stringify({ type: "get_reports" })); }
-        
         const attachBtn = document.getElementById('attach-btn'); const attachMenu = document.getElementById('attach-menu'); attachBtn.addEventListener('click', () => { attachMenu.style.display = attachMenu.style.display === 'block' ? 'none' : 'block'; });
         const processFile = (inputElement, type) => { inputElement.click(); inputElement.onchange = function() { const file = this.files[0]; if (file) { const reader = new FileReader(); reader.onload = e => sendPayload("", e.target.result, type); reader.readAsDataURL(file); } this.value = ''; attachMenu.style.display = 'none'; }; };
-        document.getElementById('btn-gallery').addEventListener('click', () => processFile(document.getElementById('file-gallery'), "image")); document.getElementById('btn-audio-file').addEventListener('click', () => processFile(document.getElementById('file-audio'), "audio"));
-        let mediaRecorder, audioChunks = []; document.getElementById('btn-mic').addEventListener('click', async function() { if (this.innerText.includes("Durdur")) { mediaRecorder.stop(); this.innerText = "🎤 Mikrofon"; this.style.color = "white"; return; } try { const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); mediaRecorder = new MediaRecorder(stream); audioChunks = []; mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); }; mediaRecorder.onstop = () => { const reader = new FileReader(); reader.onloadend = () => sendPayload("", reader.result, "audio"); reader.readAsDataURL(new Blob(audioChunks, { type: 'audio/webm' })); stream.getTracks().forEach(track => track.stop()); }; mediaRecorder.start(); this.innerText = "🔴 (Durdur)"; this.style.color = "#ed4245"; } catch (err) { alert("Mikrofon izni yok!"); } attachMenu.style.display = 'none'; });
-        let videoStream = null; document.getElementById('btn-camera').addEventListener('click', async () => { attachMenu.style.display = 'none'; try { videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } }); document.getElementById('camera-video').srcObject = videoStream; document.getElementById('camera-modal').style.display = 'flex'; } catch (err) { alert("Kamera izni yok!"); } }); const closeCamera = () => { document.getElementById('camera-modal').style.display = 'none'; if (videoStream) videoStream.getTracks().forEach(track => track.stop()); }; document.getElementById('close-camera-btn').addEventListener('click', closeCamera); document.getElementById('capture-btn').addEventListener('click', () => { const video = document.getElementById('camera-video'); const canvas = document.getElementById('camera-canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight; const ctx = canvas.getContext('2d'); ctx.translate(canvas.width, 0); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0); sendPayload("", canvas.toDataURL('image/jpeg', 0.8), "image"); closeCamera(); });
+        document.getElementById('btn-gallery').addEventListener('click', () => processFile(document.getElementById('file-gallery'), "image"));
     </script>
 </body>
 </html>
