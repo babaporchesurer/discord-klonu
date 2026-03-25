@@ -22,10 +22,9 @@ def get_db_connection():
 
 def init_db():
     conn = get_db_connection()
-    conn.autocommit = True # Hata almadan tabloları güncelleyebilmek için
+    conn.autocommit = True 
     cursor = conn.cursor()
     
-    # 1. Tabloları Oluştur (Eğer yoklarsa)
     try: cursor.execute('''CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, username TEXT, text TEXT, time TEXT, channel TEXT, media_data TEXT, media_type TEXT, server_name TEXT DEFAULT 'Ana Sunucu')''')
     except: pass
     try: cursor.execute('''CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password_hash TEXT, role TEXT, is_banned BOOLEAN DEFAULT FALSE, display_name TEXT, profile_pic TEXT)''')
@@ -37,23 +36,23 @@ def init_db():
     try: cursor.execute('''CREATE TABLE IF NOT EXISTS reports (id SERIAL PRIMARY KEY, reporter TEXT, reported_user TEXT, reason TEXT, time TEXT)''')
     except: pass
 
-    # 2. Eski veritabanını Yeni Multi-Server mantığına güncelle (Hata verirse geçer)
     try: cursor.execute("ALTER TABLE messages ADD COLUMN server_name TEXT DEFAULT 'Ana Sunucu'")
     except: pass
     try: cursor.execute("ALTER TABLE channels ADD COLUMN server_name TEXT DEFAULT 'Ana Sunucu'")
     except: pass
     
-    # 3. Varsayılan (İlk) verileri oluştur
+    # YENİ: KULLANICILAR İÇİN GİRİŞ MÜZİĞİ SÜTUNU
+    try: cursor.execute("ALTER TABLE users ADD COLUMN intro_music TEXT")
+    except: pass
+    
     try: 
         cursor.execute("SELECT * FROM users WHERE username = 'admin'")
         if not cursor.fetchone(): cursor.execute("INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)", ("admin", hashlib.sha256("admin123".encode()).hexdigest(), "admin"))
     except: pass
-    
     try:
         cursor.execute("SELECT COUNT(*) FROM servers")
         if cursor.fetchone()[0] == 0: cursor.execute("INSERT INTO servers (name, icon_data, owner) VALUES ('Ana Sunucu', '', 'admin')")
     except: pass
-
     try:
         cursor.execute("SELECT COUNT(*) FROM channels")
         if cursor.fetchone()[0] == 0: cursor.execute("INSERT INTO channels (name, server_name) VALUES ('genel-sohbet', 'Ana Sunucu'), ('valorant-tayfa', 'Ana Sunucu')")
@@ -127,25 +126,28 @@ async def websocket_endpoint(websocket: WebSocket):
                 username = packet.get("username"); password = packet.get("password")
                 hashed_pw = hashlib.sha256(password.encode()).hexdigest()
                 conn = get_db_connection(); cursor = conn.cursor()
-                cursor.execute("SELECT role, is_banned, display_name, profile_pic FROM users WHERE username = %s AND password_hash = %s", (username, hashed_pw))
+                # YENİ: intro_music sütununu da çekiyoruz
+                cursor.execute("SELECT role, is_banned, display_name, profile_pic, intro_music FROM users WHERE username = %s AND password_hash = %s", (username, hashed_pw))
                 user = cursor.fetchone()
                 if user:
                     if user[1]: await websocket.send_text(json.dumps({"type": "login_response", "success": False, "error_msg": "BANLANDINIZ!"}))
                     else:
                         manager.active_connections[websocket] = username
-                        await websocket.send_text(json.dumps({"type": "login_response", "success": True, "role": user[0], "display_name": user[2] or username, "profile_pic": user[3] or ""}))
+                        await websocket.send_text(json.dumps({
+                            "type": "login_response", "success": True, "role": user[0], 
+                            "display_name": user[2] or username, "profile_pic": user[3] or "",
+                            "intro_music": user[4] or ""
+                        }))
                         
-                        # YENİ: Giriş yapınca tüm sunucu listesini gönder
                         cursor.execute("SELECT name, icon_data FROM servers ORDER BY id ASC")
                         s_list = [{"name": r[0], "icon": r[1]} for r in cursor.fetchall()]
                         await websocket.send_text(json.dumps({"type": "server_list", "servers": s_list}))
                         
                         await manager.broadcast_online_users()
                         await websocket.send_text(json.dumps({"type": "voice_list", "users": [{"username": k, "display_name": v["display_name"], "profile_pic": v["profile_pic"], "server_name": v.get("server_name")} for k, v in manager.voice_users.items()]}))
-                else: await websocket.send_text(json.dumps({"type": "login_response", "success": False, "error_msg": "Hatalı şifre!"}))
+                else: await websocket.send_text(json.dumps({"type": "login_response", "success": False, "error_msg": "Hatalı şifre veya kullanıcı adı!"}))
                 conn.close()
 
-            # YENİ: Bir Sunucuya Tıklandığında Kanallarını Yükle
             elif packet.get("type") == "load_server":
                 s_name = packet.get("server_name")
                 conn = get_db_connection(); cursor = conn.cursor()
@@ -182,7 +184,6 @@ async def websocket_endpoint(websocket: WebSocket):
                 packet['time'] = time_string
                 await manager.broadcast(json.dumps(packet))
                 
-            # YENİ: SUNUCU OLUŞTURMA
             elif packet.get("type") == "create_server":
                 s_name, s_icon = packet.get("server_name"), packet.get("server_icon")
                 my_user = manager.active_connections.get(websocket)
@@ -198,12 +199,15 @@ async def websocket_endpoint(websocket: WebSocket):
                 except Exception: await websocket.send_text(json.dumps({"type": "system_error", "message": "Sunucu adı kullanılıyor!"}))
                 finally: conn.close()
 
+            # YENİ: Sese Katılırken Müziği De Herkese Yolla
             elif packet.get("type") == "join_voice":
                 my_user = manager.active_connections.get(websocket)
+                intro_music = packet.get("intro_music")
                 manager.voice_users[my_user] = {"display_name": packet.get("display_name"), "profile_pic": packet.get("profile_pic"), "server_name": packet.get("server_name")}
                 await manager.broadcast_voice_users()
                 for ws, uname in list(manager.active_connections.items()):
-                    if uname and uname != my_user: await ws.send_text(json.dumps({"type": "user_joined_voice", "username": my_user}))
+                    if uname and uname != my_user: 
+                        await ws.send_text(json.dumps({"type": "user_joined_voice", "username": my_user, "intro_music": intro_music}))
                         
             elif packet.get("type") == "leave_voice":
                 my_user = manager.active_connections.get(websocket)
@@ -227,15 +231,18 @@ async def websocket_endpoint(websocket: WebSocket):
                 conn.close()
                 await websocket.send_text(json.dumps({"type": "report_list", "reports": reps}))
 
+            # YENİ: Profil Güncellemesinde Müziği de Kaydet
             elif packet.get("type") == "update_profile":
                 conn = get_db_connection(); cursor = conn.cursor()
-                cursor.execute("UPDATE users SET display_name = %s, profile_pic = %s WHERE username = %s", (packet['display_name'], packet['profile_pic'], packet['username']))
+                cursor.execute("UPDATE users SET display_name = %s, profile_pic = %s, intro_music = %s WHERE username = %s", (packet['display_name'], packet['profile_pic'], packet.get('intro_music'), packet['username']))
                 conn.commit(); conn.close()
+                
                 if packet['username'] in manager.voice_users:
                     manager.voice_users[packet['username']]['display_name'] = packet['display_name']
                     manager.voice_users[packet['username']]['profile_pic'] = packet['profile_pic']
                     await manager.broadcast_voice_users()
-                await websocket.send_text(json.dumps({"type": "profile_updated", "display_name": packet['display_name'], "profile_pic": packet['profile_pic']}))
+                    
+                await websocket.send_text(json.dumps({"type": "profile_updated", "display_name": packet['display_name'], "profile_pic": packet['profile_pic'], "intro_music": packet.get('intro_music')}))
 
             elif packet.get("type") == "admin_user_action":
                 action, target = packet.get("action"), packet.get("target")
@@ -257,7 +264,6 @@ async def websocket_endpoint(websocket: WebSocket):
                 except Exception: await websocket.send_text(json.dumps({"type": "system_error", "message": "Hata!"}))
                 finally: conn.close()
 
-            # YENİ: KANAL VE SUNUCU SİLME İŞLEMLERİ
             elif packet.get("type") == "admin_channel_action":
                 action, target, val, s_name = packet.get("action"), packet.get("target"), packet.get("value"), packet.get("server_name")
                 conn = get_db_connection(); cursor = conn.cursor()
