@@ -10,12 +10,13 @@ import os
 DATABASE_URL = os.environ.get("DATABASE_URL")
 app = FastAPI()
 
+# YENİ EKLENEN SATIR: Uptime botlarının 405 hatası almasını engeller
 @app.get("/")
-@app.head("/") # YENİ: Uptime botlarının 405 hatası vermesini engeller
+@app.head("/")
 async def get():
     with open("index.html", "r", encoding="utf-8") as f:
         html_content = f.read()
-    return HTMLResponse(html_content))
+    return HTMLResponse(html_content)
 
 def get_db_connection():
     return psycopg2.connect(DATABASE_URL)
@@ -211,7 +212,6 @@ async def websocket_endpoint(websocket: WebSocket):
                     await manager.broadcast_voice_users()
                 await websocket.send_text(json.dumps({"type": "profile_updated", "display_name": packet['display_name'], "profile_pic": packet['profile_pic']}))
 
-            # --- YENİ: KULLANICI BANLAMA, SİLME VE BAN KALDIRMA İŞLEMLERİ ---
             elif packet.get("type") == "admin_user_action":
                 action, target, val = packet.get("action"), packet.get("target"), packet.get("value")
                 conn = get_db_connection()
@@ -219,25 +219,19 @@ async def websocket_endpoint(websocket: WebSocket):
                 try:
                     if action == "create": 
                         cursor.execute("INSERT INTO users (username, password_hash, role, is_banned) VALUES (%s, %s, %s, FALSE)", (target, hashlib.sha256(val.encode()).hexdigest(), "user"))
-                    
                     elif action == "ban": 
                         cursor.execute("UPDATE users SET is_banned = TRUE WHERE username = %s", (target,))
-                        # Güvenlik Protokolü: Kullanıcı o an aktifse bağlantısını anında kes!
                         for ws, uname in list(manager.active_connections.items()):
                             if uname == target:
                                 await ws.send_text(json.dumps({"type": "system_error", "message": "Admin tarafından sunucudan BANLANDINIZ!"}))
-                                await ws.close() # Suratına kapat
-                                
+                                await ws.close() 
                     elif action == "unban": 
                         cursor.execute("UPDATE users SET is_banned = FALSE WHERE username = %s", (target,))
-                        
                     elif action == "delete": 
                         cursor.execute("DELETE FROM users WHERE username = %s", (target,))
-                        # Siliyorsak da atalım
                         for ws, uname in list(manager.active_connections.items()):
                             if uname == target:
                                 await ws.close()
-                                
                     conn.commit()
                     await websocket.send_text(json.dumps({"type": "system_msg", "message": f"Kullanıcı işlemi ({action}) başarılı!"}))
                 except Exception as e: 
