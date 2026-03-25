@@ -10,7 +10,6 @@ import os
 DATABASE_URL = os.environ.get("DATABASE_URL")
 app = FastAPI()
 
-# YENİ EKLENEN SATIR: Uptime botlarının 405 hatası almasını engeller
 @app.get("/")
 @app.head("/")
 async def get():
@@ -93,7 +92,29 @@ async def websocket_endpoint(websocket: WebSocket):
             data = await websocket.receive_text()
             packet = json.loads(data)
             
-            if packet.get("type") == "login":
+            # YENİ: KAYIT OLMA SİSTEMİ
+            if packet.get("type") == "register":
+                username = packet.get("username")
+                password = packet.get("password")
+                hashed_pw = hashlib.sha256(password.encode()).hexdigest()
+                
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                try:
+                    # Bu isimde biri var mı?
+                    cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+                    if cursor.fetchone():
+                        await websocket.send_text(json.dumps({"type": "register_response", "success": False, "error_msg": "Bu kullanıcı adı zaten alınmış!"}))
+                    else:
+                        cursor.execute("INSERT INTO users (username, password_hash, role, is_banned) VALUES (%s, %s, %s, FALSE)", (username, hashed_pw, "user"))
+                        conn.commit()
+                        await websocket.send_text(json.dumps({"type": "register_response", "success": True}))
+                except Exception as e:
+                    await websocket.send_text(json.dumps({"type": "register_response", "success": False, "error_msg": "Kayıt işlemi sırasında bir hata oluştu."}))
+                finally:
+                    conn.close()
+
+            elif packet.get("type") == "login":
                 username = packet.get("username")
                 password = packet.get("password")
                 hashed_pw = hashlib.sha256(password.encode()).hexdigest()
@@ -118,7 +139,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         await manager.broadcast_online_users()
                         await websocket.send_text(json.dumps({"type": "voice_list", "users": [{"username": k, "display_name": v["display_name"], "profile_pic": v["profile_pic"]} for k, v in manager.voice_users.items()]}))
                 else:
-                    await websocket.send_text(json.dumps({"type": "login_response", "success": False, "error_msg": "Hatalı şifre!"}))
+                    await websocket.send_text(json.dumps({"type": "login_response", "success": False, "error_msg": "Hatalı şifre veya kullanıcı adı!"}))
                 conn.close()
 
             elif packet.get("type") == "load_history":
@@ -212,14 +233,13 @@ async def websocket_endpoint(websocket: WebSocket):
                     await manager.broadcast_voice_users()
                 await websocket.send_text(json.dumps({"type": "profile_updated", "display_name": packet['display_name'], "profile_pic": packet['profile_pic']}))
 
+            # Admin paneli sadeleştirildi, "create" (Kullanıcı ekleme) özelliği silindi
             elif packet.get("type") == "admin_user_action":
-                action, target, val = packet.get("action"), packet.get("target"), packet.get("value")
+                action, target = packet.get("action"), packet.get("target")
                 conn = get_db_connection()
                 cursor = conn.cursor()
                 try:
-                    if action == "create": 
-                        cursor.execute("INSERT INTO users (username, password_hash, role, is_banned) VALUES (%s, %s, %s, FALSE)", (target, hashlib.sha256(val.encode()).hexdigest(), "user"))
-                    elif action == "ban": 
+                    if action == "ban": 
                         cursor.execute("UPDATE users SET is_banned = TRUE WHERE username = %s", (target,))
                         for ws, uname in list(manager.active_connections.items()):
                             if uname == target:
